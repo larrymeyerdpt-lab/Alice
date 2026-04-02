@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alice — Personal Assistant</title>
+<link rel="apple-touch-icon" href="alice_icon_180.png">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+:root {
+  --bg:#FDFAF6; --surface:#FFFFFF; --surface-2:#F7F3EE; --surface-3:#EDE8E0;
+  --border:#E0D8CC; --border-hover:#C8BDAE;
+  --text:#2C2520; --text-dim:#6B5E52; --text-muted:#9A8E82;
+  --accent:#C06830; --accent-dim:rgba(192,104,48,0.1);
+  --green:#3A8B5C; --green-dim:rgba(58,139,92,0.1);
+  --sel:#C06830; --sel-dim:rgba(192,104,48,0.08); --sel-border:rgba(192,104,48,0.3);
+  --red:#B84233; --red-dim:rgba(184,66,51,0.08);
+  --blue:#4A7FB5; --blue-dim:rgba(74,127,181,0.1);
+  --purple:#7B6BA5; --purple-dim:rgba(123,107,165,0.1);
+  --warm-shadow:0 2px 12px rgba(44,37,32,0.06);
+  --radius:16px; --radius-sm:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Source Sans 3',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0%,rgba(192,104,48,0.04) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(58,139,92,0.03) 0%,transparent 50%);pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:28px 20px 80px}
+
+.hdr{text-align:center;margin-bottom:28px}
+.hdr-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;background:var(--green-dim);border:1px solid rgba(58,139,92,0.2);border-radius:100px;font-size:11px;font-weight:600;color:var(--green);letter-spacing:0.7px;text-transform:uppercase;margin-bottom:14px}
+.hdr-badge .dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px rgba(58,139,92,0.4);animation:pulse 2s ease infinite}
+.hdr-badge.off{background:var(--red-dim);border-color:rgba(184,66,51,0.2);color:var(--red)}
+.hdr-badge.off .dot{background:var(--red);box-shadow:0 0 6px rgba(184,66,51,0.4)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.hdr-title{font-family:'Libre Baskerville',Georgia,serif;font-size:42px;font-weight:700;letter-spacing:-0.5px;margin-bottom:4px;color:var(--text)}
+.hdr-title .i{color:var(--accent);font-weight:400;font-style:italic}
+.hdr-sub{font-size:15px;color:var(--text-dim);font-weight:400;letter-spacing:0.3px;font-style:italic}
+
+.config-banner{background:var(--red-dim);border:1px solid rgba(184,66,51,0.2);border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;font-size:13px;color:var(--red);line-height:1.6;display:none}
+.config-banner.vis{display:block}
+.config-banner code{background:rgba(184,66,51,0.1);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:11px}
+
+.mode-tabs{display:flex;gap:4px;margin-bottom:16px;background:var(--surface);border-radius:var(--radius);padding:4px;border:1px solid var(--border);box-shadow:var(--warm-shadow)}
+.mode-tab{flex:1;padding:12px;text-align:center;border-radius:calc(var(--radius) - 4px);cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;color:var(--text-dim)}
+.mode-tab:hover{color:var(--text);background:var(--surface-2)}
+.mode-tab.on{background:var(--sel-dim);color:var(--accent);border:1px solid var(--sel-border)}
+
+.db-row{display:flex;gap:10px;align-items:stretch;margin-bottom:16px}
+.db-select-wrap{flex:1;position:relative}
+.db-select{width:100%;padding:12px 40px 12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:500;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;transition:border-color 0.2s;box-shadow:var(--warm-shadow)}
+.db-select:focus{border-color:var(--accent)}
+.db-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;font-size:10px}
+.upload-btn{padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;box-shadow:var(--warm-shadow)}
+.upload-btn:hover{border-color:var(--accent);color:var(--accent)}
+.upload-btn.on{background:var(--sel-dim);color:var(--accent);border-color:var(--sel-border)}
+
+.panel{display:none}.panel.vis{display:block}
+.field-ref{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 18px;margin-bottom:16px;box-shadow:var(--warm-shadow)}
+.field-ref h3{font-size:14px;font-weight:700;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:var(--text)}
+.field-ref-toggle{font-size:11px;color:var(--text-muted);cursor:pointer;font-weight:500}
+.field-ref-fields{display:flex;flex-wrap:wrap;gap:6px}
+.field-ref-cats{margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.field-ref-cats h4{font-size:12px;color:var(--text-dim);margin-bottom:8px}
+.cat-group{margin-bottom:10px}
+.cat-group-label{font-size:11px;font-weight:600;color:var(--text-dim);margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.cat-pills{display:flex;flex-wrap:wrap;gap:4px}
+.cat-pill{padding:3px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:100px;font-size:10.5px;color:var(--text-dim)}
+
+.chat-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;display:flex;flex-direction:column;min-height:420px;max-height:70vh;box-shadow:var(--warm-shadow)}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px}
+.cm{padding:12px 16px;border-radius:var(--radius-sm);max-width:85%;font-size:14px;line-height:1.6;word-wrap:break-word}
+.cm.ai{background:var(--surface-2);border:1px solid var(--border);align-self:flex-start}
+.cm.user{background:var(--sel-dim);border:1px solid var(--sel-border);align-self:flex-end;color:var(--text)}
+.cm.sys{background:var(--green-dim);border:1px solid rgba(58,139,92,0.2);align-self:center;text-align:center;font-size:12.5px;color:var(--green);max-width:95%}
+.cm.err{background:var(--red-dim);border:1px solid rgba(184,66,51,0.2);align-self:center;text-align:center;font-size:12.5px;color:var(--red);max-width:95%}
+.cm.thinking{color:var(--text-muted);font-style:italic}
+.chat-input-row{padding:12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center;background:var(--surface)}
+.scan-btn{width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:18px;cursor:pointer;transition:all 0.2s;flex-shrink:0}
+.scan-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--sel-dim)}
+.scan-btn:disabled{opacity:0.3;cursor:not-allowed}
+.scan-modal{position:fixed;inset:0;background:rgba(44,37,32,0.92);z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;padding:20px}
+.scan-modal.open{display:flex}
+.scan-modal-hdr{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:16px 20px;z-index:2}
+.scan-modal-title{color:#FDFAF6;font-size:15px;font-weight:600}
+.scan-modal-close{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:8px;color:#FDFAF6;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer}
+.scan-modal-close:hover{border-color:var(--red);color:var(--red)}
+.scan-video-wrap{position:relative;width:100%;max-width:480px;border-radius:var(--radius);overflow:hidden;border:2px solid var(--sel-border)}
+.scan-video-wrap video{width:100%;display:block;background:#000}
+.scan-overlay{position:absolute;inset:0;pointer-events:none}
+.scan-line{position:absolute;left:10%;right:10%;top:50%;height:2px;background:var(--accent);box-shadow:0 0 12px var(--accent);animation:scanMove 2s ease-in-out infinite}
+@keyframes scanMove{0%,100%{top:30%}50%{top:70%}}
+.scan-actions{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center}
+.scan-action-btn{padding:12px 28px;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer;border:none;transition:all 0.2s}
+.scan-capture-btn{background:var(--accent);color:white}
+.scan-capture-btn:hover{filter:brightness(1.1)}
+.scan-mode-btn{background:rgba(255,255,255,0.1);color:#FDFAF6;border:1px solid rgba(255,255,255,0.2)}
+.scan-mode-btn:hover{border-color:var(--accent);color:var(--accent)}
+.scan-mode-btn.active{background:var(--sel-dim);color:var(--accent);border-color:var(--sel-border)}
+.scan-preview{max-width:480px;width:100%;border-radius:var(--radius);overflow:hidden;border:2px solid var(--sel-border)}
+.scan-preview img{width:100%;display:block}
+.scan-result{margin-top:12px;padding:12px 16px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius-sm);font-size:13px;color:#FDFAF6;max-width:480px;width:100%}
+.scan-result .barcode-val{color:var(--accent);font-family:'JetBrains Mono',monospace;font-weight:500}
+.img-thumb{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:var(--blue-dim);border:1px solid rgba(74,127,181,0.2);border-radius:6px;font-size:11px;color:var(--blue);margin-bottom:6px}
+.img-thumb img{width:32px;height:32px;object-fit:cover;border-radius:4px}
+.drop-btn{width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-muted);font-size:18px;cursor:pointer;transition:all 0.2s;flex-shrink:0;position:relative}
+.drop-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--sel-dim)}
+.drop-btn:disabled{opacity:0.3;cursor:not-allowed}
+.drop-btn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.drop-btn:disabled input[type=file]{pointer-events:none}
+.chat-box.drag-over{outline:2px dashed var(--accent);outline-offset:-4px;background:var(--sel-dim)}
+.file-preview-strip{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--border);background:var(--surface-2);font-size:12px;color:var(--text-dim)}
+.file-preview-strip .fp-icon{font-size:20px}
+.file-preview-strip .fp-info{flex:1;min-width:0}
+.file-preview-strip .fp-name{font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.file-preview-strip .fp-meta{font-size:11px;color:var(--text-muted)}
+.file-preview-strip .fp-thumb{width:40px;height:40px;object-fit:cover;border-radius:4px;border:1px solid var(--border)}
+.file-preview-strip .fp-remove{background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);padding:4px 10px;font-size:11px;cursor:pointer;white-space:nowrap}
+.file-preview-strip .fp-remove:hover{border-color:var(--red);color:var(--red)}
+.chat-in{flex:1;padding:11px 14px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Source Sans 3',sans-serif;font-size:14px;outline:none;transition:border-color 0.2s}
+.chat-in:focus{border-color:var(--accent)}
+.chat-in::placeholder{color:var(--text-muted)}
+.chat-in:disabled{opacity:0.4}
+.send-btn{padding:11px 22px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap}
+.send-btn:hover{filter:brightness(1.1)}
+.send-btn:disabled{opacity:0.3;cursor:not-allowed}
+.counter{text-align:center;padding:10px;font-size:12px;color:var(--text-dim);border-top:1px solid var(--border);background:var(--surface)}
+.counter strong{color:var(--green)}
+
+.sf{display:inline-flex;align-items:center;gap:4px;padding:4px 9px;background:var(--surface-2);border:1px solid var(--border);border-radius:4px;font-size:10.5px;font-family:'JetBrains Mono',monospace}
+.sf-t{font-size:8.5px;padding:1px 4px;border-radius:3px;font-weight:700;text-transform:uppercase}
+.sf-t.title{background:var(--accent-dim);color:var(--accent)}
+.sf-t.text{background:var(--blue-dim);color:var(--blue)}
+.sf-t.number{background:var(--green-dim);color:var(--green)}
+.sf-t.select,.sf-t.multi_select{background:var(--purple-dim);color:var(--purple)}
+.sf-t.url{background:rgba(74,127,181,0.1);color:#4A7FB5}
+.sf-t.date{background:rgba(192,160,80,0.1);color:#9A7B30}
+
+.tpl-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:10px 16px;background:var(--blue-dim);border:1px solid rgba(74,127,181,0.2);border-radius:var(--radius-sm);margin-bottom:14px;font-size:12px;color:var(--blue);font-weight:500}
+.upzone{border:2px dashed var(--border);border-radius:var(--radius);padding:36px 16px;text-align:center;cursor:pointer;transition:all 0.2s;background:var(--surface)}
+.upzone:hover,.upzone.over{border-color:var(--accent);background:var(--sel-dim)}
+.upzone input{display:none}
+.upzone-i{font-size:36px;margin-bottom:10px}
+.upzone-t{font-size:14px;font-weight:600;margin-bottom:3px}
+.upzone-s{font-size:12px;color:var(--text-muted)}
+.btns{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}.btn{padding:10px 20px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:'Source Sans 3',sans-serif;transition:all 0.2s}
+.btn-green{background:var(--green);color:white}.btn-green:hover{filter:brightness(1.1)}.btn-green:disabled{opacity:0.4;cursor:not-allowed}
+.btn-ghost{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-blue{background:var(--blue);color:white;border:none;font-size:12px;font-weight:600;cursor:pointer}.btn-blue:hover{filter:brightness(1.1)}
+.btn-sm{padding:6px 12px;font-size:11px;border-radius:6px}
+.vmsg{display:flex;align-items:flex-start;gap:8px;padding:10px 14px;border-radius:var(--radius-sm);margin-top:10px;font-size:12.5px;line-height:1.5}
+.vmsg.ok{background:var(--green-dim);color:var(--green);border:1px solid rgba(58,139,92,0.15)}
+.vmsg.err{background:var(--red-dim);color:var(--red);border:1px solid rgba(184,66,51,0.15)}
+.vmsg.warn{background:rgba(192,160,80,0.08);color:#9A7B30;border:1px solid rgba(192,160,80,0.15)}
+.prev-wrap{margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}
+.prev-hdr{display:flex;justify-content:space-between;padding:8px 14px;background:var(--surface-2);font-size:11px;color:var(--text-muted);font-weight:600}
+.prev-scroll{max-height:260px;overflow:auto}
+.ptbl{width:100%;border-collapse:collapse;font-size:11px}
+.ptbl th{background:var(--surface-2);position:sticky;top:0;padding:6px 10px;text-align:left;font-weight:600;color:var(--text-dim);border-bottom:1px solid var(--border)}
+.ptbl td{padding:5px 10px;border-bottom:1px solid var(--border);color:var(--text-dim)}
+.up-progress{display:none;margin-top:14px;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden}.up-progress.vis{display:block}
+.up-bar-wrap{height:6px;background:var(--surface-2)}.up-bar{height:100%;background:var(--green);transition:width 0.3s;width:0%}
+.up-status{padding:10px 14px;font-size:12px;color:var(--text-dim);background:var(--surface)}
+.up-log{max-height:200px;overflow-y:auto;padding:8px 14px;font-size:11px;font-family:'JetBrains Mono',monospace}.up-log .ok{color:var(--green)}.up-log .fail{color:var(--red)}
+
+.morning-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--warm-shadow)}
+.mk-section{padding:20px 24px;border-bottom:1px solid var(--border)}
+.mk-section:last-child{border-bottom:none}
+.mk-section-title{font-family:'Libre Baskerville',serif;font-size:16px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.mk-row{display:flex;align-items:center;gap:12px;padding:8px 0;font-size:14px;border-bottom:1px solid rgba(224,216,204,0.4)}
+.mk-row:last-child{border-bottom:none}
+.mk-time{font-weight:600;min-width:75px;color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:12px}
+.mk-client{flex:1}
+.mk-type{font-size:12px;color:var(--text-muted)}
+.mk-gap{padding:6px 0;font-size:12px;color:var(--text-muted);font-style:italic;text-align:center}
+.mk-task{display:flex;align-items:flex-start;gap:10px;padding:8px 0;font-size:14px;border-bottom:1px solid rgba(224,216,204,0.4)}
+.mk-task:last-child{border-bottom:none}
+.mk-pri{font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;white-space:nowrap}
+.mk-pri.p1{background:rgba(184,66,51,0.12);color:var(--red)}
+.mk-pri.p2{background:rgba(192,104,48,0.12);color:var(--accent)}
+.mk-pri.p4{background:var(--surface-2);color:var(--text-muted)}
+.mk-task-text{flex:1}
+.mk-task-due{font-size:11px;color:var(--red);font-weight:500}
+.mk-bank{padding:16px 20px;background:rgba(58,139,92,0.06);border:1px solid rgba(58,139,92,0.15);border-radius:var(--radius-sm);font-size:14px;color:var(--text);display:flex;align-items:center;gap:10px}
+.mk-loading{text-align:center;padding:20px;color:var(--text-muted);font-style:italic}
+.toast{position:fixed;bottom:-60px;left:50%;transform:translateX(-50%);padding:12px 24px;background:var(--text);color:var(--bg);border-radius:100px;font-size:13px;font-weight:600;z-index:999;transition:transform 0.3s;box-shadow:0 4px 20px rgba(44,37,32,0.2)}
+.toast.show{transform:translateX(-50%) translateY(-80px)}
+
+@media(max-width:600px){.db-row{flex-direction:column}.upload-btn{justify-content:center}.chat-box{min-height:360px}.hdr-title{font-size:32px}}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="hdr">
+    <div class="hdr-badge" id="status-badge"><span class="dot"></span> Alice is ready</div>
+    <div class="hdr-title">Al<span class="i">i</span>ce</div>
+    <div class="hdr-sub">Larry's Personal Assistant</div>
+  </header>
+
+  <div class="config-banner" id="config-banner">
+    <strong>⚙️ Server not configured.</strong> Edit the <code>CONFIG</code> section with your Cloudflare Worker URL and auth token.
+  </div>
+
+  <div class="mode-tabs">
+    <div class="mode-tab" id="tab-morning" onclick="switchMode('morning')" style="flex:0.6">☀️ Morning</div>
+    <div class="mode-tab on" id="tab-chat" onclick="switchMode('chat')">💬 Chat Entry</div>
+    <div class="mode-tab" id="tab-search" onclick="switchMode('search')">🔍 Search & Ask</div>
+    <div class="mode-tab" id="tab-personal" onclick="togglePersonal()" style="flex:0.4;font-size:18px" title="Unlock personal databases">🔒</div>
+  </div>
+
+  <!-- Personal unlock modal -->
+  <div class="scan-modal" id="personal-modal">
+    <div style="background:var(--surface);border-radius:var(--radius);padding:36px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(44,37,32,0.15)">
+      <div style="font-size:48px;margin-bottom:16px">🔐</div>
+      <div style="font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;margin-bottom:6px;color:var(--text)">Hi Larry</div>
+      <div style="font-size:14px;color:var(--text-dim);margin-bottom:24px">Enter your passphrase to access personal databases</div>
+      <input type="password" id="personal-pass" placeholder="Passphrase..." style="width:100%;padding:12px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:15px;color:var(--text);outline:none;margin-bottom:16px;text-align:center" onkeydown="if(event.key==='Enter')unlockPersonal()">
+      <div id="personal-error" style="display:none;color:var(--red);font-size:13px;margin-bottom:12px">That's not it. Try again.</div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('personal-modal').classList.remove('open')" style="flex:1;padding:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer;color:var(--text-dim)">Cancel</button>
+        <button onclick="unlockPersonal()" style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer;color:white">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="db-row">
+    <div class="db-select-wrap">
+      <select class="db-select" id="db-select" onchange="pickDb(this.value)">
+        <option value="">Select a database...</option>
+      </select>
+      <div class="db-select-arrow">▼</div>
+    </div>
+    <button class="upload-btn" id="upload-btn" onclick="toggleUpload()">📄 Upload Spreadsheet</button>
+  </div>
+
+  <div class="panel" id="panel-morning">
+    <div class="morning-card" id="morning-content">
+      <div style="text-align:center;padding:40px 20px">
+        <div style="font-size:48px;margin-bottom:16px">☀️</div>
+        <div style="font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;margin-bottom:8px">Good Morning, Larry</div>
+        <div style="font-size:14px;color:var(--text-dim);margin-bottom:24px">Your daily briefing — calendar, tasks, and reminders</div>
+        <button onclick="runMorningKickoff()" id="morning-btn" style="padding:14px 36px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s">☀️ Run Morning Kickoff</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel vis" id="panel-chat">
+    <div class="field-ref" id="field-ref-chat" style="display:none"></div>
+    <div class="chat-box">
+      <div class="chat-msgs" id="msgs"></div>
+      <div class="counter" id="counter">No entries created yet</div>
+      <div class="file-preview-strip" id="fp-chat" style="display:none"></div>
+      <div class="chat-input-row">
+        <button class="scan-btn" id="scan-btn-chat" onclick="openScanner('chat')" disabled title="Scan receipt, product, or barcode">📷</button>
+        <button class="drop-btn" id="drop-btn-chat" disabled title="Attach file (image, PDF, spreadsheet)">📎<input type="file" id="file-pick-chat" accept="image/*,.pdf,.csv,.xlsx,.xls" onchange="handleFileDrop(this.files[0],'chat')"></button>
+        <input class="chat-in" id="chat-in" placeholder="Select a database above to start adding entries..." disabled onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}">
+        <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>Send</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-search">
+    <div class="chat-box">
+      <div class="chat-msgs" id="search-msgs"></div>
+      <div class="file-preview-strip" id="fp-search" style="display:none"></div>
+      <div class="chat-input-row">
+        <button class="scan-btn" id="scan-btn-search" onclick="openScanner('search')" title="Scan and ask about an item">📷</button>
+        <button class="drop-btn" id="drop-btn-search" title="Attach file (image, PDF, spreadsheet)">📎<input type="file" id="file-pick-search" accept="image/*,.pdf,.csv,.xlsx,.xls" onchange="handleFileDrop(this.files[0],'search')"></button>
+        <input class="chat-in" id="search-in" placeholder="Ask me anything, Larry..." onkeydown="if(event.key==='Enter')searchQuery()">
+        <button class="send-btn" id="search-btn" onclick="searchQuery()">Search</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="panel-upload">
+    <div class="field-ref" id="schema-bar"></div>
+    <div class="tpl-bar">
+      <span>💡 Download a template with correct column headers</span>
+      <button class="btn btn-blue btn-sm" onclick="dlTemplate()">⬇ Download Template</button>
+    </div>
+    <div class="upzone" id="upzone" onclick="document.getElementById('finput').click()">
+      <div class="upzone-i">📁</div>
+      <div class="upzone-t">Drop your CSV or Excel file here</div>
+      <div class="upzone-s">or click to browse</div>
+      <input type="file" id="finput" accept=".csv,.xlsx,.xls" onchange="handleFile(event)">
+    </div>
+    <div id="file-result"></div>
+    <div class="up-progress" id="up-progress">
+      <div class="up-title">Creating entries in Notion...</div>
+      <div class="up-bar-wrap"><div class="up-bar" id="up-bar"></div></div>
+      <div class="up-status" id="up-status">Starting...</div>
+      <div class="up-log" id="up-log"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+const CONFIG = {
+  serverUrl: 'https://clinic-os-server.build-clinic-os.workers.dev',
+  authToken: 'clinicos-build-2026-secure'
+};
+
+const DBS=[
+  {id:'sops',icon:'📋',name:'SOPs',ds:'10279406-de67-4bce-9c82-1d2e1e021041',tp:'SOP Title',fields:[{n:'SOP Title',t:'title',r:1},{n:'Category',t:'select',o:['Clinical','Admin','Billing','HR','Compliance','Equipment','Marketing','IT']},{n:'Roles',t:'multi_select',o:['Front Desk','Billing Coordinator','PT','PTA','Office Manager','Clinic Owner']},{n:'Version',t:'number'},{n:'Source',t:'select',o:['Meeting','Brainstorm','Manual','AI-Generated','Import']},{n:'Priority',t:'select',o:['Critical','High','Standard','Low']}]},
+  {id:'roles',icon:'👤',name:'Role Blueprints',ds:'d3a6c72d-0630-44ad-93e2-28e21da4de06',tp:'Role Name',fields:[{n:'Role Name',t:'title',r:1},{n:'Department',t:'select',o:['Clinical','Admin','Billing','Management','Marketing']},{n:'Reports To',t:'text'},{n:'Status',t:'select',o:['Active','Vacant','Transitioning']},{n:'Headcount',t:'number'},{n:'Coverage Score',t:'text'},{n:'Critical Knowledge Risks',t:'text'}]},
+  {id:'meetings',icon:'📝',name:'Meeting Notes',ds:'4298124e-da47-4893-8eb5-3aa0406ec419',tp:'Meeting Title',fields:[{n:'Meeting Title',t:'title',r:1},{n:'Type',t:'select',o:['Team Meeting','Brainstorm','Decision Meeting','1-on-1','Training','Exit Interview']},{n:'Status',t:'select',o:['Notes Pending','Captured','SOPs Drafted','Processed']},{n:'Key Decisions',t:'text'},{n:'Action Items',t:'text'},{n:'Meeting Summary',t:'text'},{n:'Full Transcript',t:'url'},{n:'Date',t:'date'},{n:'SOPs Generated',t:'number'}]},
+  {id:'decisions',icon:'⚖️',name:'Decision Log',ds:'0a1cb83d-04df-4971-9adb-ecc8d8ce5396',tp:'Decision',fields:[{n:'Decision',t:'title',r:1},{n:'Category',t:'select',o:['Clinical Policy','Financial','Staffing','Operations','Vendor/Technology','Compliance','Scheduling']},{n:'Rationale',t:'text'},{n:'Alternatives Considered',t:'text'},{n:'Impact',t:'select',o:['Major','Moderate','Minor']}]},
+  {id:'approvals',icon:'📬',name:'Approval Queue',ds:'d8849641-3c9d-4c34-aee5-21437d3d8d68',tp:'Change Request',fields:[{n:'Change Request',t:'title',r:1},{n:'SOP Name',t:'text'},{n:'Change Description',t:'text'},{n:'Priority',t:'select',o:['Urgent','High','Standard','Low']},{n:'Owner Notes',t:'text'}]},
+  {id:'audit',icon:'📜',name:'Audit Trail',ds:'49555a22-8483-4a82-b2cc-807ed1feb296',tp:'Event',fields:[{n:'Event',t:'title',r:1},{n:'Action',t:'select',o:['Created','Modified','Published','Archived','Approval Requested','Approved','Rejected','Viewed']},{n:'Target SOP',t:'text'},{n:'Details',t:'text'},{n:'Category',t:'select',o:['SOP Change','Security Event','Role Change','System Event']}]},
+  {id:'vendors',icon:'🏢',name:'Vendor Directory',ds:'93ecfbda-df19-464f-9cb9-64226bf9e170',tp:'Vendor Name',fields:[{n:'Vendor Name',t:'title',r:1},{n:'Category',t:'select',o:['EMR/Software','Insurance/Payer','Equipment','Supplies','Services','IT/Tech','Facilities','Marketing']},{n:'Contact Name',t:'text'},{n:'Phone',t:'text'},{n:'Email',t:'text'},{n:'Website',t:'url'},{n:'Monthly Cost',t:'number'},{n:'BAA Status',t:'select',o:['Signed','Needed','Not Applicable','In Progress']},{n:'Notes',t:'text'}]},
+  {id:'policies',icon:'📖',name:'Policy Library',ds:'08223b06-c75d-4d91-a40a-4746d0845d02',tp:'Policy Name',fields:[{n:'Policy Name',t:'title',r:1},{n:'Category',t:'select',o:['Clinical Standards','HIPAA/Compliance','Employee Conduct','Financial','Patient Relations','Safety','Technology Use']},{n:'Review Cycle',t:'select',o:['Annually','Semi-annually','Quarterly','As Needed']},{n:'Status',t:'select',o:['Active','Under Review','Superseded','Draft']},{n:'Related SOPs',t:'text'}]},
+  {id:'retail',icon:'🏷️',name:'Retail Inventory',ds:'a53ceb5c-72ca-49f1-954f-4fe51711c1f9',tp:'Product Name',fields:[{n:'Product Name',t:'title',r:1},{n:'Category',t:'select',o:['Braces/Supports','Therapy Tools','Recovery/Wellness','Supplements','Hot/Cold Therapy','Taping/Wraps','Educational Materials','Other']},{n:'SKU',t:'text'},{n:'Supplier',t:'text'},{n:'Cost',t:'number'},{n:'Retail Price',t:'number'},{n:'Quantity on Hand',t:'number'},{n:'Reorder Point',t:'number'},{n:'Location',t:'text'},{n:'Status',t:'select',o:['In Stock','Low Stock','Out of Stock','Discontinued','On Order']},{n:'Notes',t:'text'}]},
+  {id:'facility',icon:'🏥',name:'Facility Inventory',ds:'b6c97f04-afd0-43a3-a859-ec8042a5354a',tp:'Item Name',fields:[{n:'Item Name',t:'title',r:1},{n:'Category',t:'select',o:['Treatment Tables','Modalities','Exercise Equipment','Assessment Tools','Office Equipment','Technology','Furniture','Safety/Emergency','Cleaning/Sanitation']},{n:'Location',t:'text'},{n:'Condition',t:'select',o:['Excellent','Good','Fair','Needs Repair','Decommissioned']},{n:'Serial Number',t:'text'},{n:'Purchase Price',t:'number'},{n:'Maintenance Schedule',t:'select',o:['Monthly','Quarterly','Semi-annually','Annually','As Needed']},{n:'Notes',t:'text'}]},
+  {id:'office',icon:'📦',name:'Office Supplies',ds:'c841df34-88bf-404b-9194-e4d3a2bd4f5b',tp:'Item Name',fields:[{n:'Item Name',t:'title',r:1},{n:'Category',t:'select',o:['Paper/Printing','Batteries/Electronics','Cleaning Supplies','Kitchen/Breakroom','Office Supplies','Clinical Consumables','Postage/Shipping','Tech Accessories']},{n:'Vendor',t:'text'},{n:'Purchase Link',t:'url'},{n:'Unit Cost',t:'number'},{n:'Quantity on Hand',t:'number'},{n:'Reorder Point',t:'number'},{n:'Monthly Usage',t:'number'},{n:'Monthly Cost',t:'number'},{n:'Location',t:'text'},{n:'Notes',t:'text'}]},
+  {id:'bikelab',icon:'🚲',name:'Bike Lab Inventory',ds:'473aa4f6-bf63-4924-92ac-8f6319cb7f9c',tp:'Item Name',fields:[{n:'Item Name',t:'title',r:1},{n:'Type',t:'select',o:['Cost of Service','Retail Sale','Tool/Equipment','Consumable']},{n:'Category',t:'select',o:['Saddles','Stems','Handlebars','Cleats/Pedals','Shoe Wedges/Shims','Spacers/Risers','Fitting Tools','Measurement Tools','Misc Parts','Comfort/Contact Points']},{n:'Brand',t:'text'},{n:'Size/Spec',t:'text'},{n:'Vendor',t:'text'},{n:'Purchase Link',t:'url'},{n:'Our Cost',t:'number'},{n:'Retail Price',t:'number'},{n:'Quantity on Hand',t:'number'},{n:'Reorder Point',t:'number'},{n:'Status',t:'select',o:['In Stock','Low Stock','Out of Stock','On Order','Discontinued']},{n:'Monthly Usage',t:'number'},{n:'Location',t:'text'},{n:'Notes',t:'text'}]}
+];
+
+// ═══════════════════════════════════════
+// PERSONAL DATABASES (unlocked with passphrase)
+// ═══════════════════════════════════════
+const PERSONAL_DBS=[
+  {id:'people',icon:'💛',name:'People & Relationships',ds:'1899a822-8c8c-4628-91c5-120584efeef7',tp:'Name',fields:[{n:'Name',t:'title',r:1},{n:'Relationship',t:'select',o:['Family','Close Friend','Friend','Colleague','Mentor','Acquaintance','Service Provider','Other']},{n:'Birthday',t:'date'},{n:'Anniversary',t:'date'},{n:'How We Met',t:'text'},{n:'Gift Ideas',t:'text'},{n:'Last Conversation',t:'text'},{n:'Phone',t:'text'},{n:'Email',t:'text'},{n:'Address',t:'text'},{n:'Notes',t:'text'}]},
+  {id:'journal',icon:'📔',name:'Journal',ds:'c16fcd2d-f4e6-4006-9ebf-defa949d5f36',tp:'Entry Title',fields:[{n:'Entry Title',t:'title',r:1},{n:'Date',t:'date'},{n:'Mood',t:'select',o:['Great','Good','Neutral','Tough','Rough']},{n:'Tags',t:'multi_select',o:['Gratitude','Reflection','Idea','Dream','Goal','Health','Family','Growth','Travel','Faith']},{n:'Entry',t:'text'},{n:'Highlight of the Day',t:'text'}]},
+  {id:'ideas',icon:'💡',name:'Ideas Lab',ds:'75d5c6bf-bdd3-446e-a1a7-9276e3edf908',tp:'Idea',fields:[{n:'Idea',t:'title',r:1},{n:'Category',t:'select',o:['Business','Personal','Course','Product','Side Project','Gift','Travel','Home','Other']},{n:'Status',t:'select',o:['Spark','Developing','Actionable','In Progress','Parked','Done']},{n:'Priority',t:'select',o:['Exciting','Worth Exploring','Someday','Low']},{n:'Notes',t:'text'},{n:'Related To',t:'text'}]},
+  {id:'life-events',icon:'🌟',name:'Life Events',ds:'4db69d8b-68b1-42ea-92d5-3fe334ab5756',tp:'Event',fields:[{n:'Event',t:'title',r:1},{n:'Date',t:'date'},{n:'Category',t:'select',o:['Milestone','Celebration','Achievement','Loss','Health','Travel','Family','Career','Spiritual','Other']},{n:'People Involved',t:'text'},{n:'Location',t:'text'},{n:'Significance',t:'text'},{n:'Photos/Links',t:'url'},{n:'Notes',t:'text'}]},
+  {id:'personal-meetings',icon:'🤫',name:'Personal Meetings',ds:'ba1e99b2-be89-4126-99c5-9b371f216cb5',tp:'Meeting Title',fields:[{n:'Meeting Title',t:'title',r:1},{n:'Date',t:'date'},{n:'Type',t:'select',o:['1-on-1','Doctor/Health','Financial','Legal','Family','Coaching','Therapy','Other']},{n:'With',t:'text'},{n:'Key Takeaways',t:'text'},{n:'Action Items',t:'text'},{n:'Follow Up Date',t:'date'},{n:'Notes',t:'text'}]},
+  {id:'house',icon:'🏠',name:'House Inventory',ds:'4c3a4d44-f512-420d-b203-6b337a987268',tp:'Item Name',fields:[{n:'Item Name',t:'title',r:1},{n:'Room',t:'select',o:['Kitchen','Living Room','Master Bedroom','Guest Room','Office','Garage','Bathroom','Laundry','Basement','Outdoor','Storage','Other']},{n:'Category',t:'select',o:['Furniture','Electronics','Appliance','Decor','Tool','Outdoor Equipment','Kitchen Equipment','Other']},{n:'Purchase Date',t:'date'},{n:'Purchase Price',t:'number'},{n:'Current Value',t:'number'},{n:'Condition',t:'select',o:['New','Excellent','Good','Fair','Needs Repair','Replace Soon']},{n:'Warranty',t:'text'},{n:'Brand/Model',t:'text'},{n:'Serial Number',t:'text'},{n:'Notes',t:'text'}]},
+  {id:'documents',icon:'📑',name:'Personal Documents',ds:'dbb53c5a-df86-42ba-ae68-99eb2b1927ba',tp:'Document Name',fields:[{n:'Document Name',t:'title',r:1},{n:'Category',t:'select',o:['Identity','Property','Vehicle','Medical','Education','Legal','Certification','Tax','Other']},{n:'Date Issued',t:'date'},{n:'Expiration Date',t:'date'},{n:'Issuing Authority',t:'text'},{n:'Document Number',t:'text'},{n:'Storage Location',t:'text'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]},
+  {id:'warranties',icon:'🛡️',name:'Warranties',ds:'bf562350-e80b-437b-b2a3-557f7c2143c4',tp:'Product',fields:[{n:'Product',t:'title',r:1},{n:'Brand',t:'text'},{n:'Purchase Date',t:'date'},{n:'Warranty Expires',t:'date'},{n:'Vendor',t:'text'},{n:'Receipt/Proof',t:'url'},{n:'Claim Status',t:'select',o:['Active','Claimed','Expired','Voided']},{n:'Coverage Details',t:'text'},{n:'Serial Number',t:'text'},{n:'Notes',t:'text'}]},
+  {id:'clothing',icon:'👔',name:'Clothing',ds:'bbdd1ef0-10c8-485f-9a2a-d7a8ea93fabd',tp:'Item',fields:[{n:'Item',t:'title',r:1},{n:'Category',t:'select',o:['Tops','Bottoms','Outerwear','Shoes','Athletic','Formal','Accessories','Undergarments','Seasonal']},{n:'Brand',t:'text'},{n:'Size',t:'text'},{n:'Color',t:'text'},{n:'Season',t:'select',o:['All Year','Spring/Summer','Fall/Winter','Summer Only','Winter Only']},{n:'Occasion',t:'select',o:['Everyday','Work','Formal','Athletic','Outdoor','Lounge']},{n:'Location',t:'select',o:['Main Closet','Guest Closet','Dresser','Storage','Laundry','Donated','Tossed']},{n:'Condition',t:'select',o:['New','Good','Worn','Replace Soon']},{n:'Notes',t:'text'}]},
+  {id:'financial',icon:'💰',name:'Financial Documents',ds:'aa7d8540-c580-4826-84f5-da44ee7f9c99',tp:'Document',fields:[{n:'Document',t:'title',r:1},{n:'Category',t:'select',o:['Tax Return','Bank Statement','Investment Statement','Loan/Mortgage','Credit Card','Receipt','Contract','Pay Stub','1099/W2','Other']},{n:'Year',t:'number'},{n:'Institution',t:'text'},{n:'Amount',t:'number'},{n:'Date',t:'date'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]},
+  {id:'insurance',icon:'🏥',name:'Insurance Documents',ds:'e9438511-8dea-4e40-bd72-2add8a8f7de2',tp:'Policy Name',fields:[{n:'Policy Name',t:'title',r:1},{n:'Type',t:'select',o:['Health','Dental','Vision','Life','Auto','Home/Renters','Business','Disability','Umbrella','Other']},{n:'Provider',t:'text'},{n:'Policy Number',t:'text'},{n:'Premium',t:'number'},{n:'Premium Frequency',t:'select',o:['Monthly','Quarterly','Semi-Annual','Annual']},{n:'Coverage Amount',t:'number'},{n:'Deductible',t:'number'},{n:'Renewal Date',t:'date'},{n:'Agent Name',t:'text'},{n:'Agent Phone',t:'text'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]}
+];
+
+let personalUnlocked=false;
+let db=null, mode='chat', chatHistory=[], totalCreated=0, busy=false, parsedRows=[], uploadOpen=false;
+
+async function init() {
+  const sel=document.getElementById('db-select');
+  // Business databases (always visible)
+  const bizGroup=document.createElement('optgroup');bizGroup.label='🏢 BUILD Business';
+  DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;bizGroup.appendChild(o)});
+  sel.appendChild(bizGroup);
+  // Personal databases (hidden until unlocked)
+  const persGroup=document.createElement('optgroup');persGroup.label='🔒 Personal (locked)';persGroup.id='personal-db-group';persGroup.style.display='none';
+  PERSONAL_DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;persGroup.appendChild(o)});
+  sel.appendChild(persGroup);
+  if(!CONFIG.serverUrl||!CONFIG.authToken){document.getElementById('config-banner').classList.add('vis');document.getElementById('status-badge').classList.add('off');document.getElementById('status-badge').innerHTML='<span class="dot"></span> Alice needs setup';return}
+  try{const r=await fetch(CONFIG.serverUrl+'/health',{headers:{'Authorization':'Bearer '+CONFIG.authToken}});if(!r.ok)throw new Error()}catch{document.getElementById('status-badge').classList.add('off');document.getElementById('status-badge').innerHTML='<span class="dot"></span> Alice is sleeping'}
+  initSearch(); initChatWelcome();
+}
+
+async function serverCall(endpoint,body){const r=await fetch(CONFIG.serverUrl+endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.authToken},body:JSON.stringify(body)});if(!r.ok){const err=await r.text();throw new Error(`Server error ${r.status}: ${err}`)}return await r.json()}
+
+function pickDb(id){
+  if(!id){db=null;document.getElementById('field-ref-chat').style.display='none';document.getElementById('chat-in').disabled=true;document.getElementById('chat-in').placeholder='Select a database above to start adding entries...';document.getElementById('send-btn').disabled=true;document.getElementById('scan-btn-chat').disabled=true;document.getElementById('drop-btn-chat').disabled=true;return}
+  db=DBS.find(d=>d.id===id)||PERSONAL_DBS.find(d=>d.id===id);chatHistory=[];parsedRows=[];
+  document.getElementById('chat-in').disabled=false;document.getElementById('chat-in').placeholder=`Describe items for ${db.name}...`;document.getElementById('send-btn').disabled=false;
+  document.getElementById('finput').value='';document.getElementById('file-result').innerHTML='';document.getElementById('up-progress').classList.remove('vis');
+  renderSchema();initChat();
+}
+
+function renderSchema(){
+  const fieldsHtml=db.fields.map(f=>`<div class="sf"><span style="${f.r?'color:var(--accent)':''}">${f.n}${f.r?' *':''}</span><span class="sf-t ${f.t}">${f.t==='multi_select'?'multi':f.t}</span></div>`).join('');
+  const selectFields=db.fields.filter(f=>f.o&&f.o.length>0);
+  let catsHtml='';
+  if(selectFields.length>0){catsHtml=`<div class="field-ref-cats"><h4>📋 Available Categories & Options</h4>`+selectFields.map(f=>`<div class="cat-group"><div class="cat-group-label">${f.n} <span class="sf-t ${f.t}">${f.t==='multi_select'?'multi':'select'}</span></div><div class="cat-pills">${f.o.map(o=>`<span class="cat-pill">${o}</span>`).join('')}</div></div>`).join('')+`</div>`}
+  const refContent=`<h3>${db.icon} ${db.name} — Fields & Categories <span class="field-ref-toggle" onclick="toggleFieldRef(this)">hide ▲</span></h3><div class="field-ref-body"><div class="field-ref-fields">${fieldsHtml}</div>${catsHtml}</div>`;
+  document.getElementById('field-ref-chat').innerHTML=refContent;document.getElementById('field-ref-chat').style.display='block';
+  document.getElementById('schema-bar').innerHTML=refContent;
+}
+
+function toggleFieldRef(el){const body=el.closest('.field-ref').querySelector('.field-ref-body');if(body.style.display==='none'){body.style.display='block';el.textContent='hide ▲'}else{body.style.display='none';el.textContent='show ▼'}}
+
+function switchMode(m){
+  mode=m;
+  document.getElementById('tab-morning').classList.toggle('on',m==='morning');
+  document.getElementById('tab-chat').classList.toggle('on',m==='chat');
+  document.getElementById('tab-search').classList.toggle('on',m==='search');
+  document.getElementById('panel-morning').classList.toggle('vis',m==='morning');
+  document.getElementById('panel-chat').classList.toggle('vis',m==='chat');
+  document.getElementById('panel-search').classList.toggle('vis',m==='search');
+  if(m==='search'){document.getElementById('panel-upload').classList.remove('vis');document.getElementById('upload-btn').classList.remove('on');uploadOpen=false}
+  if(m==='chat')document.getElementById('chat-in').focus();
+  if(m==='search')document.getElementById('search-in').focus();
+}
+
+function toggleUpload(){
+  if(!db){toast('Select a database first');return}
+  if(mode==='search')switchMode('chat');
+  uploadOpen=!uploadOpen;
+  document.getElementById('panel-upload').classList.toggle('vis',uploadOpen);
+  document.getElementById('upload-btn').classList.toggle('on',uploadOpen);
+}
+
+function initChatWelcome(){document.getElementById('msgs').innerHTML='';addChat('ai','Hi Larry 👋 I\'m <strong>Alice</strong>, your personal assistant. Pick a database and tell me what you need — I\'ll take care of the rest.')}
+
+function initChat(){document.getElementById('msgs').innerHTML='';addChat('ai',`Ready when you are, Larry. Just describe what goes into <strong>${db.icon} ${db.name}</strong> and I will handle the rest.`)}
+
+function addChat(type,html){const el=document.getElementById('msgs'),d=document.createElement('div');d.className='cm '+type;d.innerHTML=html.replace(/\n/g,'<br>');el.appendChild(d);el.scrollTop=el.scrollHeight;return d}
+
+async function sendMsg(){
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
+  addChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+  const thinking=addChat('ai thinking','Creating in Notion...');chatHistory.push({role:'user',content:text});
+  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory});thinking.remove();
+    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys',`✅ ${result.createdCount} ${result.createdCount===1?'entry':'entries'} created in Notion!`);toast(`✅ ${result.createdCount} added to ${db.icon} ${db.name}`)}
+  }catch(err){thinking.remove();console.error(err);addChat('err','Connection issue — check server. Error: '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+}
+
+let searchHistory=[];
+function initSearch(){document.getElementById('search-msgs').innerHTML='';addSearchChat('ai','Ask me anything — I can search across <strong>all your databases</strong> and find what you need.\n\nExamples:\n• "What bike parts do we have in stock?"\n• "Show me all meeting notes"\n• "What roles have we documented?"\n• "Any inventory items over $200?"')}
+
+function addSearchChat(type,html){const el=document.getElementById('search-msgs'),d=document.createElement('div');d.className='cm '+type;d.innerHTML=html.replace(/\n/g,'<br>');el.appendChild(d);el.scrollTop=el.scrollHeight;return d}
+
+async function searchQuery(){
+  const input=document.getElementById('search-in'),text=input.value.trim();if(!text||busy)return;
+  addSearchChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
+  const thinking=addSearchChat('ai thinking','Searching databases...');searchHistory.push({role:'user',content:text});
+  try{const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;const result=await serverCall('/query',{message:text,databases:allDbs,history:searchHistory.slice(-6)});thinking.remove();
+    if(result.text){addSearchChat('ai',formatMd(result.text));searchHistory.push({role:'assistant',content:result.text})}
+    if(result.results&&result.results.length>0){const t=result.results.reduce((s,r)=>s+r.count,0);const n=result.results.map(r=>r.database).join(', ');addSearchChat('sys',`📊 Found ${t} ${t===1?'result':'results'} across ${n}`)}
+  }catch(err){thinking.remove();console.error(err);addSearchChat('err','Search failed — check server. Error: '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('search-btn').disabled=false;input.focus();
+}
+
+function handleFile(e){const file=e.target.files[0];if(!file||!db)return;const ext=file.name.split('.').pop().toLowerCase();if(ext==='csv')Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>showPreview(r.data,file.name)});else{const reader=new FileReader();reader.onload=e=>{const wb=XLSX.read(e.target.result,{type:'binary'});showPreview(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]),file.name)};reader.readAsBinaryString(file)}}
+
+function showPreview(data,fname){
+  if(!data.length){document.getElementById('file-result').innerHTML='<div class="vmsg err">⚠️ No data.</div>';return}
+  parsedRows=data;const headers=Object.keys(data[0]),dbNames=db.fields.map(f=>f.n);
+  const matched=headers.filter(h=>dbNames.includes(h)),unmatched=headers.filter(h=>!dbNames.includes(h));
+  const titleField=db.fields.find(f=>f.r),hasTitle=titleField&&matched.includes(titleField.n);
+  let html=`<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:var(--green-dim);border:1px solid rgba(80,200,120,0.2);border-radius:var(--radius-sm);margin-top:14px;font-size:12px;color:var(--green)"><span>📄</span><strong>${fname}</strong><span style="margin-left:auto;background:rgba(80,200,120,0.2);padding:3px 10px;border-radius:100px;font-size:11px;font-weight:600">${data.length} rows</span></div>`;
+  if(!hasTitle)html+=`<div class="vmsg err"><span>❌</span><span>Missing required: <strong>"${titleField.n}"</strong></span></div>`;
+  else{if(unmatched.length)html+=`<div class="vmsg warn"><span>⚠️</span><span>${matched.length} matched, ${unmatched.length} ignored: ${unmatched.join(', ')}</span></div>`;html+=`<div class="vmsg ok"><span>✅</span><span><strong>${matched.length}/${dbNames.length} columns matched</strong> — ready to send</span></div>`}
+  html+=`<div class="prev-wrap"><div class="prev-hdr"><span>Preview</span><span>${Math.min(data.length,10)} of ${data.length}</span></div><div class="prev-scroll"><table class="ptbl"><thead><tr>${headers.map(h=>`<th style="${dbNames.includes(h)?'':'color:var(--red);text-decoration:line-through'}">${h}</th>`).join('')}</tr></thead><tbody>${data.slice(0,10).map(r=>'<tr>'+headers.map(h=>`<td>${r[h]??''}</td>`).join('')+'</tr>').join('')}</tbody></table></div></div>`;
+  if(hasTitle)html+=`<div class="btns"><button class="btn btn-ghost" onclick="resetUpload()">← Reset</button><button class="btn btn-green" id="send-notion-btn" onclick="sendAllToNotion()">🚀 Send ${data.length} entries to Notion</button></div>`;
+  document.getElementById('file-result').innerHTML=html;
+}
+
+async function sendAllToNotion(){
+  if(!parsedRows.length||!db)return;document.getElementById('send-notion-btn').disabled=true;
+  const prog=document.getElementById('up-progress'),bar=document.getElementById('up-bar'),status=document.getElementById('up-status'),log=document.getElementById('up-log');
+  prog.classList.add('vis');log.innerHTML='';const dbNames=db.fields.map(f=>f.n);let ok=0,fail=0,batchSize=5;
+  for(let i=0;i<parsedRows.length;i+=batchSize){
+    const batch=parsedRows.slice(i,Math.min(i+batchSize,parsedRows.length)),batchEnd=Math.min(i+batchSize,parsedRows.length);
+    status.innerHTML=`Processing rows ${i+1}–${batchEnd} of ${parsedRows.length}...`;bar.style.width=((i/parsedRows.length)*100)+'%';
+    const cleanBatch=batch.map(row=>{const clean={};for(const[k,v] of Object.entries(row)){if(dbNames.includes(k)&&v!==null&&v!==undefined&&String(v).trim()!=='')clean[k]=v}return clean});
+    try{const result=await serverCall('/create',{entries:cleanBatch,database:db});ok+=result.createdCount||batch.length;batch.forEach((r,j)=>{log.innerHTML+=`<div class="ok">✅ ${esc(r[db.tp]||'Row '+(i+j+1))}</div>`})}
+    catch(err){fail+=batch.length;batch.forEach((r,j)=>{log.innerHTML+=`<div class="fail">❌ ${esc(r[db.tp]||'Row '+(i+j+1))} — ${err.message}</div>`})}
+    log.scrollTop=log.scrollHeight;if(i+batchSize<parsedRows.length)await new Promise(r=>setTimeout(r,800));
+  }
+  bar.style.width='100%';totalCreated+=ok;updateCounter();
+  status.innerHTML=fail===0?`<strong>Done! All ${ok} entries created.</strong>`:`<strong>${ok} created, ${fail} failed.</strong>`;
+  if(ok>0)toast(`✅ ${ok} entries added to ${db.icon} ${db.name}!`);
+}
+
+function resetUpload(){document.getElementById('finput').value='';document.getElementById('file-result').innerHTML='';document.getElementById('up-progress').classList.remove('vis');parsedRows=[]}
+
+function dlTemplate(){if(!db)return;const csv=Papa.unparse({fields:db.fields.map(f=>f.n),data:[db.fields.map(f=>f.o?f.o[0]:f.t==='number'?'0':f.t==='url'?'https://':'')]});const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`${db.name.replace(/[^a-zA-Z0-9]/g,'_')}_template.csv`;a.click();toast('Template downloaded!')}
+
+function updateCounter(){document.getElementById('counter').innerHTML=`<strong>${totalCreated}</strong> ${totalCreated===1?'entry':'entries'} created this session`}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function formatMd(s){return s.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\*(.*?)\*/g,'<em>$1</em>').replace(/`(.*?)`/g,'<code style="background:var(--surface-3);padding:1px 5px;border-radius:3px;font-family:JetBrains Mono,monospace;font-size:11px">$1</code>').replace(/\n/g,'<br>')}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
+
+const uz=document.getElementById('upzone');
+uz.addEventListener('dragover',e=>{e.preventDefault();uz.classList.add('over')});
+uz.addEventListener('dragleave',()=>uz.classList.remove('over'));
+uz.addEventListener('drop',e=>{e.preventDefault();uz.classList.remove('over');if(e.dataTransfer.files[0]){document.getElementById('finput').files=e.dataTransfer.files;handleFile({target:{files:[e.dataTransfer.files[0]]}})}});
+
+
+// ═══════════════════════════════════════
+// SCANNER — Camera capture + Barcode detection
+// ═══════════════════════════════════════
+let scanStream=null, scanMode='photo', scanTarget='chat', pendingImage=null, barcodeDetector=null;
+
+// Check for native BarcodeDetector API
+if('BarcodeDetector' in window){barcodeDetector=new BarcodeDetector({formats:['ean_13','ean_8','upc_a','upc_e','code_128','code_39','qr_code','data_matrix']})}
+
+function openScanner(target){
+  scanTarget=target;
+  pendingImage=null;
+  document.getElementById('scan-modal').classList.add('open');
+  document.getElementById('scan-video-wrap').style.display='block';
+  document.getElementById('scan-preview').style.display='none';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('scan-capture').style.display='';
+  document.getElementById('scan-use').style.display='none';
+  document.getElementById('scan-retake').style.display='none';
+  document.getElementById('scan-modal-title').textContent=target==='chat'?'📷 Show me what you\'ve got':'📷 Let me take a look';
+  startCamera();
+}
+
+async function startCamera(){
+  try{
+    scanStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    document.getElementById('scan-video').srcObject=scanStream;
+    if(scanMode==='barcode'&&barcodeDetector)startBarcodeDetection();
+  }catch(err){
+    console.error('Camera error:',err);
+    document.getElementById('scan-result').style.display='block';
+    document.getElementById('scan-result').innerHTML='<span style="color:var(--red)">Camera access denied. Check browser permissions.</span>';
+  }
+}
+
+function stopCamera(){
+  if(scanStream){scanStream.getTracks().forEach(t=>t.stop());scanStream=null}
+  document.getElementById('scan-video').srcObject=null;
+}
+
+function closeScanner(){
+  stopCamera();
+  document.getElementById('scan-modal').classList.remove('open');
+  pendingImage=null;
+}
+
+function setScanMode(m){
+  scanMode=m;
+  document.getElementById('scan-mode-photo').classList.toggle('active',m==='photo');
+  document.getElementById('scan-mode-barcode').classList.toggle('active',m==='barcode');
+  if(m==='barcode'&&barcodeDetector&&scanStream)startBarcodeDetection();
+}
+
+let barcodeInterval=null;
+function startBarcodeDetection(){
+  if(barcodeInterval)clearInterval(barcodeInterval);
+  const video=document.getElementById('scan-video');
+  barcodeInterval=setInterval(async()=>{
+    if(!scanStream||!barcodeDetector||scanMode!=='barcode')return clearInterval(barcodeInterval);
+    try{
+      const barcodes=await barcodeDetector.detect(video);
+      if(barcodes.length>0){
+        clearInterval(barcodeInterval);
+        const code=barcodes[0];
+        capturePhoto();
+        setTimeout(()=>{
+          document.getElementById('scan-result').style.display='block';
+          document.getElementById('scan-result').innerHTML='Barcode detected: <span class="barcode-val">'+esc(code.rawValue)+'</span> ('+code.format+')';
+        },100);
+      }
+    }catch(e){}
+  },500);
+}
+
+function capturePhoto(){
+  const video=document.getElementById('scan-video');
+  const canvas=document.getElementById('scan-canvas');
+  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(video,0,0);
+  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+  pendingImage=dataUrl.split(',')[1]; // base64 without prefix
+  
+  // Show preview
+  stopCamera();
+  document.getElementById('scan-video-wrap').style.display='none';
+  document.getElementById('scan-preview').style.display='block';
+  document.getElementById('scan-preview-img').src=dataUrl;
+  document.getElementById('scan-capture').style.display='none';
+  document.getElementById('scan-use').style.display='';
+  document.getElementById('scan-retake').style.display='';
+}
+
+function retakeScan(){
+  pendingImage=null;
+  document.getElementById('scan-video-wrap').style.display='block';
+  document.getElementById('scan-preview').style.display='none';
+  document.getElementById('scan-result').style.display='none';
+  document.getElementById('scan-capture').style.display='';
+  document.getElementById('scan-use').style.display='none';
+  document.getElementById('scan-retake').style.display='none';
+  startCamera();
+}
+
+function useScan(){
+  if(!pendingImage)return;
+  closeScanner();
+  
+  if(scanTarget==='chat'){
+    // Set a default prompt and auto-send
+    const input=document.getElementById('chat-in');
+    const barcodeResult=document.getElementById('scan-result').querySelector('.barcode-val');
+    if(barcodeResult){
+      input.value='Scanned barcode: '+barcodeResult.textContent+'. Look up this product and add it to inventory.';
+    } else {
+      input.value='Read this image and extract all product/item details for the database. Include names, prices, quantities, and any other relevant information you can see.';
+    }
+    sendMsgWithImage(pendingImage);
+  } else {
+    const input=document.getElementById('search-in');
+    const barcodeResult=document.getElementById('scan-result').querySelector('.barcode-val');
+    if(barcodeResult){
+      input.value='Do we have this product in our inventory? Barcode: '+barcodeResult.textContent;
+    } else {
+      input.value='What can you tell me about the items shown in this image? Do we have any of these in our databases?';
+    }
+    searchQueryWithImage(pendingImage);
+  }
+  pendingImage=null;
+}
+
+async function sendMsgWithImage(imageBase64){
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
+  addChat('user','<div class="img-thumb"><img src="data:image/jpeg;base64,'+imageBase64.substring(0,100)+'..." alt="scan">📷 Scanned image</div>'+esc(text));
+  input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+  const thinking=addChat('ai thinking','Analyzing image and creating entries...');chatHistory.push({role:'user',content:text});
+  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,image:imageBase64});thinking.remove();
+    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from scan!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+  }catch(err){thinking.remove();console.error(err);addChat('err','Scan processing failed — '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+}
+
+async function searchQueryWithImage(imageBase64){
+  const input=document.getElementById('search-in'),text=input.value.trim();if(!text||busy)return;
+  addSearchChat('user','<div class="img-thumb"><img src="data:image/jpeg;base64,'+imageBase64.substring(0,100)+'..." alt="scan">📷 Scanned image</div>'+esc(text));
+  input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
+  const thinking=addSearchChat('ai thinking','Analyzing image and searching...');
+  searchHistory.push({role:'user',content:'[User attached an image and said]: '+text});
+  try{const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;const result=await serverCall('/query',{message:text,databases:allDbs,history:searchHistory.slice(0,-1),image:imageBase64});thinking.remove();
+    if(result.text){addSearchChat('ai',formatMd(result.text));searchHistory.push({role:'assistant',content:result.text})}
+    if(result.results&&result.results.length>0){const t=result.results.reduce((s,r)=>s+r.count,0);const n=result.results.map(r=>r.database).join(', ');addSearchChat('sys','📊 Found '+t+' '+(t===1?'result':'results')+' across '+n)}
+  }catch(err){thinking.remove();console.error(err);addSearchChat('err','Scan search failed — '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('search-btn').disabled=false;input.focus();
+}
+
+
+// ═══════════════════════════════════════
+// FILE DROP — Drag & drop + file picker for images, PDFs, spreadsheets
+// ═══════════════════════════════════════
+let pendingFile={chat:null, search:null};
+
+// Drag-and-drop on chat boxes
+function setupDragDrop(boxId, target){
+  const box=document.getElementById(boxId);
+  if(!box)return;
+  box.addEventListener('dragover',e=>{e.preventDefault();e.stopPropagation();box.classList.add('drag-over')});
+  box.addEventListener('dragleave',e=>{e.preventDefault();e.stopPropagation();box.classList.remove('drag-over')});
+  box.addEventListener('drop',e=>{
+    e.preventDefault();e.stopPropagation();box.classList.remove('drag-over');
+    const file=e.dataTransfer.files[0];
+    if(file)handleFileDrop(file,target);
+  });
+}
+
+function handleFileDrop(file,target){
+  if(!file)return;
+  const ext=file.name.split('.').pop().toLowerCase();
+  const isImage=['jpg','jpeg','png','gif','webp','heic'].includes(ext);
+  const isPdf=ext==='pdf';
+  const isSpreadsheet=['csv','xlsx','xls','tsv'].includes(ext);
+
+  if(!isImage&&!isPdf&&!isSpreadsheet){
+    toast('Unsupported file type. Use images, PDFs, or spreadsheets.');return;
+  }
+
+  // For spreadsheets in chat mode, redirect to the existing upload flow
+  if(isSpreadsheet&&target==='chat'){
+    if(!db){toast('Select a database first');return;}
+    // Switch to upload mode and process
+    if(!uploadOpen)toggleUpload();
+    if(ext==='csv'){
+      Papa.parse(file,{header:true,skipEmptyLines:true,complete:r=>showPreview(r.data,file.name)});
+    }else{
+      const reader=new FileReader();
+      reader.onload=e=>{const wb=XLSX.read(e.target.result,{type:'binary'});showPreview(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]),file.name)};
+      reader.readAsBinaryString(file);
+    }
+    toast('📄 Spreadsheet loaded into Upload tab');
+    return;
+  }
+
+  // For spreadsheets in search mode — read and ask about the data
+  if(isSpreadsheet&&target==='search'){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      let data;
+      if(ext==='csv'){
+        const parsed=Papa.parse(e.target.result,{header:true,skipEmptyLines:true});
+        data=parsed.data;
+      }else{
+        const wb=XLSX.read(e.target.result,{type:'binary'});
+        data=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+      }
+      // Store as text summary for the search
+      const preview=JSON.stringify(data.slice(0,20),null,2);
+      pendingFile.search={type:'spreadsheet',name:file.name,size:file.size,text:preview,rows:data.length};
+      showFilePreview(target);
+    };
+    reader.readAsBinaryString(file);
+    return;
+  }
+
+  // For images — read as base64
+  if(isImage){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const dataUrl=e.target.result;
+      const base64=dataUrl.split(',')[1];
+      pendingFile[target]={type:'image',name:file.name,size:file.size,base64:base64,dataUrl:dataUrl};
+      showFilePreview(target);
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+
+  // For PDFs — read as base64 (Claude can read PDFs as images)
+  if(isPdf){
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const dataUrl=e.target.result;
+      const base64=dataUrl.split(',')[1];
+      pendingFile[target]={type:'pdf',name:file.name,size:file.size,base64:base64};
+      showFilePreview(target);
+    };
+    reader.readAsDataURL(file);
+    return;
+  }
+}
+
+function showFilePreview(target){
+  const fp=document.getElementById('fp-'+target);
+  const f=pendingFile[target];
+  if(!f||!fp){return;}
+  const sizeStr=f.size<1024?(f.size+'B'):f.size<1048576?((f.size/1024).toFixed(1)+'KB'):((f.size/1048576).toFixed(1)+'MB');
+  const icon=f.type==='image'?'🖼️':f.type==='pdf'?'📄':f.type==='spreadsheet'?'📊':'📎';
+  const meta=f.type==='spreadsheet'?f.rows+' rows • '+sizeStr:sizeStr;
+  let thumbHtml='';
+  if(f.type==='image'&&f.dataUrl){thumbHtml='<img class="fp-thumb" src="'+f.dataUrl+'">';}
+
+  fp.innerHTML=thumbHtml+'<span class="fp-icon">'+icon+'</span><div class="fp-info"><span class="fp-name">'+esc(f.name)+'</span><span class="fp-meta">'+meta+'</span></div><button class="fp-remove" onclick="clearFileDrop(\''+target+'\')">✕ Remove</button>';
+  fp.style.display='flex';
+
+  // Update placeholder to hint about the attachment
+  const input=document.getElementById(target==='chat'?'chat-in':'search-in');
+  if(target==='chat'){
+    input.placeholder=f.type==='image'?'Describe what to do with this image (or just hit Send)...':f.type==='pdf'?'What should I extract from this PDF?':'Describe entries...';
+  }else{
+    input.placeholder=f.type==='spreadsheet'?'Ask a question about this spreadsheet data...':'Ask a question about this file...';
+  }
+  input.focus();
+}
+
+function clearFileDrop(target){
+  pendingFile[target]=null;
+  const fp=document.getElementById('fp-'+target);
+  if(fp){fp.style.display='none';fp.innerHTML='';}
+  // Reset placeholder
+  const input=document.getElementById(target==='chat'?'chat-in':'search-in');
+  if(target==='chat'){input.placeholder=db?'Describe items for '+db.name+'...':'Select a database above...';}
+  else{input.placeholder='Ask me anything, Larry...';}
+  // Reset file input
+  const picker=document.getElementById('file-pick-'+target);
+  if(picker)picker.value='';
+}
+
+// ═══ Override sendMsg and searchQuery to check for pending files ═══
+const _origSendMsg=sendMsg;
+sendMsg=async function(){
+  // Check for pending file drop first
+  const f=pendingFile.chat;
+  if(f){
+    const input=document.getElementById('chat-in');
+    if(!input.value.trim()){
+      if(f.type==='image')input.value='Read this image and extract all product/item details for the database.';
+      else if(f.type==='pdf')input.value='Read this document and extract all relevant entries for the database.';
+    }
+    if(f.type==='image'){
+      clearFileDrop('chat');
+      sendMsgWithImage(f.base64);
+    }else if(f.type==='pdf'){
+      clearFileDrop('chat');
+      sendMsgWithPdf(f.base64, f.name);
+    }
+    return;
+  }
+  // If there's a recent image from a scan and user is following up (e.g. "yes"), re-attach it
+  if(window._lastImageBase64){
+    const input=document.getElementById('chat-in');
+    const text=input.value.trim();
+    if(text){
+      const imgCopy=window._lastImageBase64;
+      window._lastImageBase64=null;
+      sendMsgWithImage(imgCopy);
+      return;
+    }
+  }
+  _origSendMsg();
+};
+
+const _origSearchQuery=searchQuery;
+searchQuery=async function(){
+  const f=pendingFile.search;
+  if(f){
+    const input=document.getElementById('search-in');
+    if(!input.value.trim()){
+      if(f.type==='image')input.value='What can you tell me about the items in this image? Do we have any in our databases?';
+      else if(f.type==='pdf')input.value='Summarize this document and check if any items relate to our clinic data.';
+      else if(f.type==='spreadsheet')input.value='Analyze this data and tell me what you see. Any matches in our databases?';
+    }
+    if(f.type==='image'){
+      clearFileDrop('search');
+      searchQueryWithImage(f.base64);
+    }else if(f.type==='pdf'){
+      clearFileDrop('search');
+      searchQueryWithPdf(f.base64, f.name);
+    }else if(f.type==='spreadsheet'){
+      clearFileDrop('search');
+      searchQueryWithSpreadsheet(f.text, f.name);
+    }
+    return;
+  }
+  _origSearchQuery();
+};
+
+// ═══ PDF handlers — send as document to Claude ═══
+async function sendMsgWithPdf(pdfBase64, fileName){
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
+  addChat('user','<div class="img-thumb">📄 '+esc(fileName)+'</div>'+esc(text));
+  input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+  const thinking=addChat('ai thinking','Reading PDF and creating entries...');chatHistory.push({role:'user',content:text});
+  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,pdf:pdfBase64,pdfName:fileName});thinking.remove();
+    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from PDF!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+  }catch(err){thinking.remove();console.error(err);addChat('err','PDF processing failed — '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+}
+
+async function searchQueryWithPdf(pdfBase64, fileName){
+  const input=document.getElementById('search-in'),text=input.value.trim();if(!text||busy)return;
+  addSearchChat('user','<div class="img-thumb">📄 '+esc(fileName)+'</div>'+esc(text));
+  input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
+  const thinking=addSearchChat('ai thinking','Reading PDF and searching...');searchHistory.push({role:'user',content:text});
+  try{const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;const result=await serverCall('/query',{message:text,databases:allDbs,history:searchHistory.slice(-6),pdf:pdfBase64,pdfName:fileName});thinking.remove();
+    if(result.text){addSearchChat('ai',formatMd(result.text));searchHistory.push({role:'assistant',content:result.text})}
+    if(result.results&&result.results.length>0){const t=result.results.reduce((s,r)=>s+r.count,0);const n=result.results.map(r=>r.database).join(', ');addSearchChat('sys','📊 Found '+t+' '+(t===1?'result':'results')+' across '+n)}
+  }catch(err){thinking.remove();console.error(err);addSearchChat('err','PDF search failed — '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('search-btn').disabled=false;input.focus();
+}
+
+async function searchQueryWithSpreadsheet(textData, fileName){
+  const input=document.getElementById('search-in'),text=input.value.trim();if(!text||busy)return;
+  addSearchChat('user','<div class="img-thumb">📊 '+esc(fileName)+'</div>'+esc(text));
+  input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
+  const thinking=addSearchChat('ai thinking','Analyzing spreadsheet and searching...');searchHistory.push({role:'user',content:text+'\n\nSpreadsheet data:\n'+textData});
+  try{const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;const result=await serverCall('/query',{message:text+'\n\nAttached spreadsheet data ('+fileName+'):\n'+textData,databases:allDbs,history:searchHistory.slice(-6)});thinking.remove();
+    if(result.text){addSearchChat('ai',formatMd(result.text));searchHistory.push({role:'assistant',content:result.text})}
+    if(result.results&&result.results.length>0){const t=result.results.reduce((s,r)=>s+r.count,0);const n=result.results.map(r=>r.database).join(', ');addSearchChat('sys','📊 Found '+t+' '+(t===1?'result':'results')+' across '+n)}
+  }catch(err){thinking.remove();console.error(err);addSearchChat('err','Spreadsheet search failed — '+err.message)}
+  busy=false;input.disabled=false;document.getElementById('search-btn').disabled=false;input.focus();
+}
+
+// Init drag-drop on chat boxes
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    // Find chat-box elements inside each panel
+    const chatPanel=document.querySelector('#panel-chat .chat-box');
+    const searchPanel=document.querySelector('#panel-search .chat-box');
+    if(chatPanel){
+      chatPanel.addEventListener('dragover',e=>{e.preventDefault();chatPanel.classList.add('drag-over')});
+      chatPanel.addEventListener('dragleave',e=>{e.preventDefault();chatPanel.classList.remove('drag-over')});
+      chatPanel.addEventListener('drop',e=>{e.preventDefault();chatPanel.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFileDrop(e.dataTransfer.files[0],'chat')});
+    }
+    if(searchPanel){
+      searchPanel.addEventListener('dragover',e=>{e.preventDefault();searchPanel.classList.add('drag-over')});
+      searchPanel.addEventListener('dragleave',e=>{e.preventDefault();searchPanel.classList.remove('drag-over')});
+      searchPanel.addEventListener('drop',e=>{e.preventDefault();searchPanel.classList.remove('drag-over');if(e.dataTransfer.files[0])handleFileDrop(e.dataTransfer.files[0],'search')});
+    }
+  },100);
+});
+
+
+// ═══════════════════════════════════════
+// PERSONAL DATABASE UNLOCK
+// ═══════════════════════════════════════
+const PERSONAL_PASSPHRASE='alice2026';  // Change this to your passphrase
+
+function togglePersonal(){
+  if(personalUnlocked){
+    // Lock personal databases
+    personalUnlocked=false;
+    document.getElementById('tab-personal').innerHTML='🔒';
+    document.getElementById('tab-personal').title='Unlock personal databases';
+    const group=document.getElementById('personal-db-group');
+    if(group){group.style.display='none';group.label='🔒 Personal (locked)';}
+    // If currently viewing a personal db, reset
+    if(db&&PERSONAL_DBS.find(d=>d.id===db.id)){
+      document.getElementById('db-select').value='';
+      pickDb('');
+    }
+    toast('🔒 Personal databases locked');
+  }else{
+    // Show passphrase modal
+    document.getElementById('personal-modal').classList.add('open');
+    document.getElementById('personal-pass').value='';
+    document.getElementById('personal-error').style.display='none';
+    setTimeout(()=>document.getElementById('personal-pass').focus(),200);
+  }
+}
+
+function unlockPersonal(){
+  const pass=document.getElementById('personal-pass').value;
+  if(pass===PERSONAL_PASSPHRASE){
+    personalUnlocked=true;
+    document.getElementById('personal-modal').classList.remove('open');
+    document.getElementById('tab-personal').innerHTML='🔓';
+    document.getElementById('tab-personal').title='Lock personal databases';
+    const group=document.getElementById('personal-db-group');
+    if(group){group.style.display='';group.label='🔑 Personal';}
+    toast('🔓 Personal databases unlocked');
+    // Add personal dbs to search scope
+  }else{
+    document.getElementById('personal-error').style.display='block';
+    document.getElementById('personal-pass').value='';
+    document.getElementById('personal-pass').focus();
+  }
+}
+
+
+// ═══════════════════════════════════════
+// MORNING KICKOFF — Calendar + Todoist + Banking
+// ═══════════════════════════════════════
+async function runMorningKickoff(){
+  const btn=document.getElementById('morning-btn');
+  if(btn){btn.disabled=true;btn.textContent='Loading...';}
+  const container=document.getElementById('morning-content');
+  container.innerHTML='<div class="mk-loading">☀️ Pulling your day together...</div>';
+
+  try{
+    const now=new Date();
+    const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    const dayName=days[now.getDay()];
+    const dateStr=months[now.getMonth()]+' '+now.getDate()+', '+now.getFullYear();
+
+    // Ask Claude via the /query endpoint to generate a morning briefing
+    const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
+    const result=await serverCall('/query',{
+      message:'Generate a morning briefing for Larry. Today is '+dayName+', '+dateStr+'. Check the Meeting Notes database for any meetings today. List any relevant info from the databases. Keep it concise and warm.',
+      databases:allDbs,
+      history:[]
+    });
+
+    let html=`<div class="mk-section" style="text-align:center;padding:24px 20px 16px">
+      <div style="font-size:36px;margin-bottom:8px">☀️</div>
+      <div style="font-family:'Libre Baskerville',serif;font-size:24px;font-weight:700;margin-bottom:4px">Good Morning, Larry</div>
+      <div style="font-size:14px;color:var(--text-dim)">${dayName}, ${dateStr}</div>
+    </div>`;
+
+    // ═══ AI BRIEFING ═══
+    if(result.text){
+      html+=`<div class="mk-section"><div class="mk-section-title">📋 Your Briefing</div>
+        <div style="font-size:14px;line-height:1.7;color:var(--text)">${formatMd(result.text)}</div>
+      </div>`;
+    }
+
+    // ═══ QUICK LINKS ═══
+    html+=`<div class="mk-section"><div class="mk-section-title">⚡ Quick Actions</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        <button onclick="switchMode('search');document.getElementById('search-in').value='What meetings do I have this week?';searchQuery()" style="padding:8px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-dim);font-family:'Source Sans 3',sans-serif">📅 This week's meetings</button>
+        <button onclick="switchMode('search');document.getElementById('search-in').value='What tasks are overdue?';searchQuery()" style="padding:8px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-dim);font-family:'Source Sans 3',sans-serif">⏰ Overdue items</button>
+        <button onclick="switchMode('search');document.getElementById('search-in').value='Show me low stock inventory';searchQuery()" style="padding:8px 16px;background:var(--surface-2);border:1px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-dim);font-family:'Source Sans 3',sans-serif">📦 Low stock check</button>
+      </div>
+    </div>`;
+
+    // ═══ BANKING REMINDER ═══
+    html+=`<div class="mk-section">
+      <div class="mk-bank">🏦 <span>Don't forget to check <strong>Wells Fargo business checking</strong> for yesterday's expenses and deposits.</span></div>
+    </div>`;
+
+    // ═══ SAGE REMINDER ═══
+    html+=`<div class="mk-section" style="padding:16px 24px">
+      <div style="font-size:12px;color:var(--text-muted);text-align:center;line-height:1.6">
+        💡 For your full morning kickoff with calendar + Todoist, say <strong>"morning kickoff"</strong> to Sage in Claude.<br>
+        Sage has live access to your Google Calendar and Todoist.
+      </div>
+    </div>`;
+
+    // ═══ REFRESH BUTTON ═══
+    html+=`<div class="mk-section" style="text-align:center;padding:12px">
+      <button onclick="runMorningKickoff()" style="padding:10px 24px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-dim)">↻ Refresh</button>
+    </div>`;
+
+    container.innerHTML=html;
+
+  }catch(err){
+    container.innerHTML=`<div style="padding:40px;text-align:center">
+      <div style="font-size:36px;margin-bottom:12px">😴</div>
+      <div style="font-size:15px;color:var(--red)">Couldn't load morning briefing</div>
+      <div style="font-size:13px;color:var(--text-muted);margin-top:8px">${esc(err.message)}</div>
+      <button onclick="runMorningKickoff()" style="margin-top:16px;padding:10px 24px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer">Try Again</button>
+    </div>`;
+  }
+}
+
+init();
+</script>
+
+<!-- Scan Modal -->
+<div class="scan-modal" id="scan-modal">
+  <div class="scan-modal-hdr">
+    <span class="scan-modal-title" id="scan-modal-title">📷 Scan Receipt or Product</span>
+    <button class="scan-modal-close" onclick="closeScanner()">✕ Close</button>
+  </div>
+  <div class="scan-video-wrap" id="scan-video-wrap">
+    <video id="scan-video" autoplay playsinline></video>
+    <div class="scan-overlay"><div class="scan-line"></div></div>
+  </div>
+  <div class="scan-preview" id="scan-preview" style="display:none">
+    <img id="scan-preview-img" src="">
+  </div>
+  <div class="scan-result" id="scan-result" style="display:none"></div>
+  <div class="scan-actions">
+    <button class="scan-action-btn scan-mode-btn active" id="scan-mode-photo" onclick="setScanMode('photo')">📄 Photo</button>
+    <button class="scan-action-btn scan-mode-btn" id="scan-mode-barcode" onclick="setScanMode('barcode')">⊟ Barcode</button>
+    <button class="scan-action-btn scan-capture-btn" id="scan-capture" onclick="capturePhoto()">📸 Capture</button>
+    <button class="scan-action-btn scan-capture-btn" id="scan-use" style="display:none" onclick="useScan()">✓ Use This</button>
+    <button class="scan-action-btn scan-mode-btn" id="scan-retake" style="display:none" onclick="retakeScan()">↺ Retake</button>
+  </div>
+</div>
+<canvas id="scan-canvas" style="display:none"></canvas>
+
+</body>
+</html>
