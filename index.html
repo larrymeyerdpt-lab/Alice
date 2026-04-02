@@ -358,7 +358,7 @@ async function serverCall(endpoint,body){const r=await fetch(CONFIG.serverUrl+en
 function pickDb(id){
   if(!id){db=null;document.getElementById('field-ref-chat').style.display='none';document.getElementById('chat-in').disabled=true;document.getElementById('chat-in').placeholder='Select a database above to start adding entries...';document.getElementById('send-btn').disabled=true;document.getElementById('scan-btn-chat').disabled=true;document.getElementById('drop-btn-chat').disabled=true;return}
   db=DBS.find(d=>d.id===id)||PERSONAL_DBS.find(d=>d.id===id);chatHistory=[];parsedRows=[];
-  document.getElementById('chat-in').disabled=false;document.getElementById('chat-in').placeholder=`Describe items for ${db.name}...`;document.getElementById('send-btn').disabled=false;
+  document.getElementById('chat-in').disabled=false;document.getElementById('chat-in').placeholder=`Describe items for ${db.name}...`;document.getElementById('send-btn').disabled=false;document.getElementById('scan-btn-chat').disabled=false;document.getElementById('drop-btn-chat').disabled=false;
   document.getElementById('finput').value='';document.getElementById('file-result').innerHTML='';document.getElementById('up-progress').classList.remove('vis');
   renderSchema();initChat();
 }
