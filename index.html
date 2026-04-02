@@ -49,6 +49,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .db-select-wrap{flex:1;position:relative}
 .db-select{width:100%;padding:12px 40px 12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:500;appearance:none;-webkit-appearance:none;cursor:pointer;outline:none;transition:border-color 0.2s;box-shadow:var(--warm-shadow)}
 .db-select:focus{border-color:var(--accent)}
+.db-select-biz{border-left:4px solid var(--blue)}
+.db-select-personal{border-left:4px solid var(--accent)}
 .db-select-arrow{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;font-size:10px}
 .upload-btn{padding:12px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-family:'Source Sans 3',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;white-space:nowrap;box-shadow:var(--warm-shadow)}
 .upload-btn:hover{border-color:var(--accent);color:var(--accent)}
@@ -205,7 +207,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="mode-tab" id="tab-morning" onclick="switchMode('morning')" style="flex:0.6">☀️ Morning</div>
     <div class="mode-tab on" id="tab-chat" onclick="switchMode('chat')">💬 Chat Entry</div>
     <div class="mode-tab" id="tab-search" onclick="switchMode('search')">🔍 Search & Ask</div>
-    <div class="mode-tab" id="tab-personal" onclick="togglePersonal()" style="flex:0.4;font-size:18px" title="Unlock personal databases">🔒</div>
+    <div class="mode-tab" id="tab-personal" onclick="togglePersonal()" style="flex:0.6;font-size:13px;font-weight:700" title="Unlock personal databases">🔒 Locked</div>
   </div>
 
   <!-- Personal unlock modal -->
@@ -225,23 +227,37 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 
   <div class="db-row">
     <div class="db-select-wrap">
-      <select class="db-select" id="db-select" onchange="pickDb(this.value)">
-        <option value="">Select a database...</option>
+      <select class="db-select db-select-biz" id="db-select-biz" onchange="pickDb(this.value,'biz')">
+        <option value="">🏢 Business database...</option>
       </select>
       <div class="db-select-arrow">▼</div>
     </div>
-    <button class="upload-btn" id="upload-btn" onclick="toggleUpload()">📄 Upload Spreadsheet</button>
+    <div class="db-select-wrap" id="personal-select-wrap" style="display:none">
+      <select class="db-select db-select-personal" id="db-select-personal" onchange="pickDb(this.value,'personal')">
+        <option value="">🔑 Personal database...</option>
+      </select>
+      <div class="db-select-arrow">▼</div>
+    </div>
+    <button class="upload-btn" id="upload-btn" onclick="toggleUpload()">📄 Upload</button>
   </div>
 
   <div class="panel" id="panel-morning">
     <div class="morning-card" id="morning-content">
-      <div style="text-align:center;padding:40px 20px">
-        <div style="font-size:48px;margin-bottom:16px">☀️</div>
-        <div style="font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;margin-bottom:8px">Good Morning, Larry</div>
-        <div style="font-size:14px;color:var(--text-dim);margin-bottom:24px">Your daily briefing — calendar, tasks, and reminders</div>
-        <button onclick="runMorningKickoff()" id="morning-btn" style="padding:14px 36px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all 0.2s">☀️ Run Morning Kickoff</button>
+      <div style="text-align:center;padding:30px 20px 16px">
+        <div style="font-size:42px;margin-bottom:8px">☀️</div>
+        <div style="font-family:'Libre Baskerville',serif;font-size:22px;font-weight:700;margin-bottom:4px">Good Morning, Larry</div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:16px">Your daily briefing — schedule, tasks, alerts, and reminders</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button onclick="runMorningKickoff()" id="morning-btn" style="padding:12px 28px;background:var(--accent);color:white;border:none;border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer">☀️ Load Briefing</button>
+          <button onclick="loadAlerts()" id="alerts-btn" style="padding:12px 28px;background:var(--surface-2);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:'Source Sans 3',sans-serif;font-size:14px;font-weight:600;cursor:pointer">🔔 Active Alerts</button>
+        </div>
+        <div style="margin-top:16px;font-size:12px;color:var(--text-muted);line-height:1.6">
+          💡 For the full morning kickoff with calendar + Todoist, say <strong>"morning kickoff"</strong> to Sage in Claude.
+          Sage pushes the briefing here for you to read anytime.
+        </div>
       </div>
     </div>
+    <div id="morning-results" style="margin-top:12px"></div>
   </div>
 
   <div class="panel vis" id="panel-chat">
@@ -332,22 +348,22 @@ const PERSONAL_DBS=[
   {id:'warranties',icon:'🛡️',name:'Warranties',ds:'3841b789-d044-4ef2-92b2-e4c6f3a4fbe2',tp:'Product',fields:[{n:'Product',t:'title',r:1},{n:'Brand',t:'text'},{n:'Purchase Date',t:'date'},{n:'Warranty Expires',t:'date'},{n:'Vendor',t:'text'},{n:'Receipt/Proof',t:'url'},{n:'Claim Status',t:'select',o:['Active','Claimed','Expired','Voided']},{n:'Coverage Details',t:'text'},{n:'Serial Number',t:'text'},{n:'Notes',t:'text'}]},
   {id:'clothing',icon:'👔',name:'Clothing',ds:'1235212f-9b66-4722-b2ed-384278d69ba5',tp:'Item',fields:[{n:'Item',t:'title',r:1},{n:'Category',t:'select',o:['Tops','Bottoms','Outerwear','Shoes','Athletic','Formal','Accessories','Undergarments','Seasonal']},{n:'Brand',t:'text'},{n:'Size',t:'text'},{n:'Color',t:'text'},{n:'Season',t:'select',o:['All Year','Spring/Summer','Fall/Winter','Summer Only','Winter Only']},{n:'Occasion',t:'select',o:['Everyday','Work','Formal','Athletic','Outdoor','Lounge']},{n:'Location',t:'select',o:['Main Closet','Guest Closet','Dresser','Storage','Laundry','Donated','Tossed']},{n:'Condition',t:'select',o:['New','Good','Worn','Replace Soon']},{n:'Notes',t:'text'}]},
   {id:'financial',icon:'💰',name:'Financial Documents',ds:'3b60a6d0-3db9-4a8a-afc5-9bc72af3c51a',tp:'Document',fields:[{n:'Document',t:'title',r:1},{n:'Category',t:'select',o:['Tax Return','Bank Statement','Investment Statement','Loan/Mortgage','Credit Card','Receipt','Contract','Pay Stub','1099/W2','Other']},{n:'Year',t:'number'},{n:'Institution',t:'text'},{n:'Amount',t:'number'},{n:'Date',t:'date'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]},
-  {id:'insurance',icon:'🏥',name:'Insurance Documents',ds:'f1121903-dde7-4a7f-aa94-8641426e9bc8',tp:'Policy Name',fields:[{n:'Policy Name',t:'title',r:1},{n:'Type',t:'select',o:['Health','Dental','Vision','Life','Auto','Home/Renters','Business','Disability','Umbrella','Other']},{n:'Provider',t:'text'},{n:'Policy Number',t:'text'},{n:'Premium',t:'number'},{n:'Premium Frequency',t:'select',o:['Monthly','Quarterly','Semi-Annual','Annual']},{n:'Coverage Amount',t:'number'},{n:'Deductible',t:'number'},{n:'Renewal Date',t:'date'},{n:'Agent Name',t:'text'},{n:'Agent Phone',t:'text'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]}
+  {id:'insurance',icon:'🏥',name:'Insurance Documents',ds:'f1121903-dde7-4a7f-aa94-8641426e9bc8',tp:'Policy Name',fields:[{n:'Policy Name',t:'title',r:1},{n:'Type',t:'select',o:['Health','Dental','Vision','Life','Auto','Home/Renters','Business','Disability','Umbrella','Other']},{n:'Provider',t:'text'},{n:'Policy Number',t:'text'},{n:'Premium',t:'number'},{n:'Premium Frequency',t:'select',o:['Monthly','Quarterly','Semi-Annual','Annual']},{n:'Coverage Amount',t:'number'},{n:'Deductible',t:'number'},{n:'Renewal Date',t:'date'},{n:'Agent Name',t:'text'},{n:'Agent Phone',t:'text'},{n:'Digital Copy',t:'url'},{n:'Notes',t:'text'}]},
+  {id:'briefings',icon:'☀️',name:'Morning Briefings',ds:'3e41a2ac-4d4c-462b-81a9-90549f3cbe2a',tp:'Date',fields:[{n:'Date',t:'title',r:1},{n:'Day',t:'text'},{n:'Schedule',t:'text'},{n:'Patient Count',t:'number'},{n:'Open Blocks',t:'text'},{n:'Tasks Summary',t:'text'},{n:'P1 Tasks',t:'text'},{n:'P2 Tasks',t:'text'},{n:'Overdue Count',t:'number'},{n:'Banking Reminder',t:'text'},{n:'Notes',t:'text'}]},
+  {id:'alerts',icon:'🔔',name:'Alerts & Reminders',ds:'bf275323-4889-4571-ba66-75d667fa4712',tp:'Alert',fields:[{n:'Alert',t:'title',r:1},{n:'Type',t:'select',o:['Birthday','Warranty Expiring','Insurance Renewal','SOP Review Due','Follow-Up Due','Life Event','Task Overdue','Custom']},{n:'Due Date',t:'date'},{n:'Days Until',t:'number'},{n:'Source Database',t:'text'},{n:'Source Entry',t:'text'},{n:'Status',t:'select',o:['Active','Acknowledged','Resolved','Snoozed']},{n:'Details',t:'text'},{n:'Action Needed',t:'text'}]},
+  {id:'workflows',icon:'📋',name:'Workflows & Playbooks',ds:'6c00076f-7838-41e3-9cc7-c8f94ab73bfe',tp:'Workflow Name',fields:[{n:'Workflow Name',t:'title',r:1},{n:'Category',t:'select',o:['Morning Routine','Business Operations','Travel & Adventure','Home & Life','Health & Wellness','Financial','Technology','Relationships','Other']},{n:'Status',t:'select',o:['Active','Draft','Archived']},{n:'Last Used',t:'date'},{n:'Frequency',t:'select',o:['Daily','Weekly','Monthly','Quarterly','As Needed','Seasonal','Annual']},{n:'Estimated Time',t:'text'},{n:'Tags',t:'multi_select',o:['SOP','Checklist','Procedure','Template','Reference']},{n:'Notes',t:'text'}]}
 ];
 
 let personalUnlocked=false;
 let db=null, mode='chat', chatHistory=[], totalCreated=0, busy=false, parsedRows=[], uploadOpen=false;
 
 async function init() {
-  const sel=document.getElementById('db-select');
-  // Business databases (always visible)
-  const bizGroup=document.createElement('optgroup');bizGroup.label='🏢 BUILD Business';
-  DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;bizGroup.appendChild(o)});
-  sel.appendChild(bizGroup);
-  // Personal databases (hidden until unlocked)
-  const persGroup=document.createElement('optgroup');persGroup.label='🔒 Personal (locked)';persGroup.id='personal-db-group';persGroup.style.display='none';
-  PERSONAL_DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;persGroup.appendChild(o)});
-  sel.appendChild(persGroup);
+  // Populate Business dropdown
+  const bizSel=document.getElementById('db-select-biz');
+  DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;bizSel.appendChild(o)});
+  // Populate Personal dropdown (hidden until unlocked)
+  const persSel=document.getElementById('db-select-personal');
+  PERSONAL_DBS.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=`${d.icon} ${d.name}`;persSel.appendChild(o)});
   if(!CONFIG.serverUrl||!CONFIG.authToken){document.getElementById('config-banner').classList.add('vis');document.getElementById('status-badge').classList.add('off');document.getElementById('status-badge').innerHTML='<span class="dot"></span> Alice needs setup';return}
   try{const r=await fetch(CONFIG.serverUrl+'/health',{headers:{'Authorization':'Bearer '+CONFIG.authToken}});if(!r.ok)throw new Error()}catch{document.getElementById('status-badge').classList.add('off');document.getElementById('status-badge').innerHTML='<span class="dot"></span> Alice is sleeping'}
   initSearch(); initChatWelcome();
@@ -355,8 +371,11 @@ async function init() {
 
 async function serverCall(endpoint,body){const r=await fetch(CONFIG.serverUrl+endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.authToken},body:JSON.stringify(body)});if(!r.ok){const err=await r.text();throw new Error(`Server error ${r.status}: ${err}`)}return await r.json()}
 
-function pickDb(id){
+function pickDb(id, source){
   if(!id){db=null;document.getElementById('field-ref-chat').style.display='none';document.getElementById('chat-in').disabled=true;document.getElementById('chat-in').placeholder='Select a database above to start adding entries...';document.getElementById('send-btn').disabled=true;document.getElementById('scan-btn-chat').disabled=true;document.getElementById('drop-btn-chat').disabled=true;return}
+  // Clear the other dropdown when one is selected
+  if(source==='biz')document.getElementById('db-select-personal').value='';
+  if(source==='personal')document.getElementById('db-select-biz').value='';
   db=DBS.find(d=>d.id===id)||PERSONAL_DBS.find(d=>d.id===id);chatHistory=[];parsedRows=[];
   document.getElementById('chat-in').disabled=false;document.getElementById('chat-in').placeholder=`Describe items for ${db.name}...`;document.getElementById('send-btn').disabled=false;document.getElementById('scan-btn-chat').disabled=false;document.getElementById('drop-btn-chat').disabled=false;
   document.getElementById('finput').value='';document.getElementById('file-result').innerHTML='';document.getElementById('up-progress').classList.remove('vis');
@@ -886,13 +905,15 @@ function togglePersonal(){
   if(personalUnlocked){
     // Lock personal databases
     personalUnlocked=false;
-    document.getElementById('tab-personal').innerHTML='🔒';
+    document.getElementById('tab-personal').innerHTML='🔒 Locked';
     document.getElementById('tab-personal').title='Unlock personal databases';
-    const group=document.getElementById('personal-db-group');
-    if(group){group.style.display='none';group.label='🔒 Personal (locked)';}
+    document.getElementById('tab-personal').style.color='';
+    document.getElementById('tab-personal').style.background='';
+    document.getElementById('personal-select-wrap').style.display='none';
+    document.getElementById('db-select-personal').value='';
     // If currently viewing a personal db, reset
     if(db&&PERSONAL_DBS.find(d=>d.id===db.id)){
-      document.getElementById('db-select').value='';
+      document.getElementById('db-select-personal').value='';
       pickDb('');
     }
     toast('🔒 Personal databases locked');
@@ -910,10 +931,104 @@ function unlockPersonal(){
   if(pass===PERSONAL_PASSPHRASE){
     personalUnlocked=true;
     document.getElementById('personal-modal').classList.remove('open');
-    document.getElementById('tab-personal').innerHTML='🔓';
+    document.getElementById('tab-personal').innerHTML='🔓 Unlocked';
     document.getElementById('tab-personal').title='Lock personal databases';
-    const group=document.getElementById('personal-db-group');
-    if(group){group.style.display='';group.label='🔑 Personal';}
+    document.getElementById('tab-personal').style.color='var(--green)';
+    document.getElementById('tab-personal').style.background='var(--green-dim)';
+    document.getElementById('personal-select-wrap').style.display='';
+    toast('🔓 Personal databases unlocked');
+    // Add personal dbs to search scope
+  }else{
+    document.getElementById('personal-error').style.display='block';
+    document.getElementById('personal-pass').value='';
+    document.getElementById('personal-pass').focus();
+  }
+}
+
+
+// ═══════════════════════════════════════
+// MORNING KICKOFF — Calendar + Todoist + Banking
+// ═══════════════════════════════════════
+async function runMorningKickoff(){
+  const btn=document.getElementById('morning-btn');
+  if(btn){btn.disabled=true;btn.textContent='Loading...';}
+  const container=document.getElementById('morning-results');
+  container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Loading today\'s briefing...</div>';
+  try{
+    const briefingDb=PERSONAL_DBS.find(d=>d.id==='briefings');
+    if(!briefingDb){container.innerHTML='<div style="padding:16px;color:var(--red)">Morning Briefings database not found. Make sure personal databases are unlocked.</div>';if(btn){btn.disabled=false;btn.textContent='☀️ Load Briefing';}return}
+    const result=await serverCall('/query',{message:'Show me the most recent morning briefing entry. Return all details including schedule, tasks, alerts, and notes.',databases:[briefingDb,...(personalUnlocked?PERSONAL_DBS:[])],history:[]});
+    if(result.text){
+      container.innerHTML='<div class="morning-card" style="margin-bottom:12px"><div style="padding:20px 24px;font-size:14px;line-height:1.7;color:var(--text)">'+formatMd(result.text)+'</div></div>';
+    }else{
+      container.innerHTML='<div class="morning-card"><div style="padding:24px;text-align:center;color:var(--text-dim)"><div style="font-size:24px;margin-bottom:8px">📭</div>No briefing yet today.<br><br>Say <strong>"morning kickoff"</strong> to Sage in Claude to generate one.</div></div>';
+    }
+  }catch(err){
+    container.innerHTML='<div style="padding:16px;color:var(--red)">Could not load briefing: '+esc(err.message)+'</div>';
+  }
+  if(btn){btn.disabled=false;btn.textContent='☀️ Load Briefing';}
+}
+
+async function loadAlerts(){
+  const btn=document.getElementById('alerts-btn');
+  if(btn){btn.disabled=true;btn.textContent='Loading...';}
+  const container=document.getElementById('morning-results');
+  container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Checking active alerts...</div>';
+  try{
+    const alertsDb=PERSONAL_DBS.find(d=>d.id==='alerts');
+    if(!alertsDb){container.innerHTML='<div style="padding:16px;color:var(--red)">Alerts database not found. Make sure personal databases are unlocked.</div>';if(btn){btn.disabled=false;btn.textContent='🔔 Active Alerts';}return}
+    const result=await serverCall('/query',{message:'Show me all active alerts and reminders. List each one with the type, what it is, when it is due, how many days until, and what action is needed. Sort by due date (soonest first).',databases:[alertsDb],history:[]});
+    if(result.text){
+      container.innerHTML='<div class="morning-card" style="margin-bottom:12px"><div style="padding:20px 24px"><div style="font-family:\'Libre Baskerville\',serif;font-size:16px;font-weight:700;margin-bottom:12px">🔔 Active Alerts</div><div style="font-size:14px;line-height:1.7;color:var(--text)">'+formatMd(result.text)+'</div></div></div>';
+    }else{
+      container.innerHTML='<div class="morning-card"><div style="padding:24px;text-align:center;color:var(--green)"><div style="font-size:24px;margin-bottom:8px">✅</div>All clear — no active alerts!</div></div>';
+    }
+  }catch(err){
+    container.innerHTML='<div style="padding:16px;color:var(--red)">Could not load alerts: '+esc(err.message)+'</div>';
+  }
+  if(btn){btn.disabled=false;btn.textContent='🔔 Active Alerts';}
+}
+
+// ═══════════════════════════════════════
+// PERSONAL DATABASE UNLOCK
+// ═══════════════════════════════════════
+const PERSONAL_PASSPHRASE='alice2026';  // Change this to your passphrase
+
+function togglePersonal(){
+  if(personalUnlocked){
+    // Lock personal databases
+    personalUnlocked=false;
+    document.getElementById('tab-personal').innerHTML='🔒 Locked';
+    document.getElementById('tab-personal').title='Unlock personal databases';
+    document.getElementById('tab-personal').style.color='';
+    document.getElementById('tab-personal').style.background='';
+    document.getElementById('personal-select-wrap').style.display='none';
+    document.getElementById('db-select-personal').value='';
+    // If currently viewing a personal db, reset
+    if(db&&PERSONAL_DBS.find(d=>d.id===db.id)){
+      document.getElementById('db-select-personal').value='';
+      pickDb('');
+    }
+    toast('🔒 Personal databases locked');
+  }else{
+    // Show passphrase modal
+    document.getElementById('personal-modal').classList.add('open');
+    document.getElementById('personal-pass').value='';
+    document.getElementById('personal-error').style.display='none';
+    setTimeout(()=>document.getElementById('personal-pass').focus(),200);
+  }
+}
+
+function unlockPersonal(){
+  const pass=document.getElementById('personal-pass').value;
+  if(pass===PERSONAL_PASSPHRASE){
+    personalUnlocked=true;
+    document.getElementById('personal-modal').classList.remove('open');
+    document.getElementById('tab-personal').innerHTML='🔓 Unlocked';
+    document.getElementById('tab-personal').title='Lock personal databases';
+    document.getElementById('tab-personal').style.color='var(--green)';
+    document.getElementById('tab-personal').style.background='var(--green-dim)';
+    document.getElementById('personal-select-wrap').style.display='';
     toast('🔓 Personal databases unlocked');
     // Add personal dbs to search scope
   }else{
