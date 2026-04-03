@@ -893,7 +893,7 @@ function clearFileDrop(target){
 }
 
 // ═══ Override sendMsg and searchQuery to check for pending files ═══
-const _origSendMsg=sendMsg;
+const _fileDropSendMsg=sendMsg;
 sendMsg=async function(){
   // Check for pending file drop first
   const f=pendingFile.chat;
@@ -923,7 +923,7 @@ sendMsg=async function(){
       return;
     }
   }
-  _origSendMsg();
+  _fileDropSendMsg();
 };
 
 const _origSearchQuery=searchQuery;
