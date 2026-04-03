@@ -267,10 +267,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       <div class="counter" id="counter">No entries created yet</div>
       <div class="file-preview-strip" id="fp-chat" style="display:none"></div>
       <div class="chat-input-row">
-        <button class="scan-btn" id="scan-btn-chat" onclick="openScanner('chat')" disabled title="Scan receipt, product, or barcode">📷</button>
-        <button class="drop-btn" id="drop-btn-chat" disabled title="Attach file (image, PDF, spreadsheet)">📎<input type="file" id="file-pick-chat" accept="image/*,.pdf,.csv,.xlsx,.xls" onchange="handleFileDrop(this.files[0],'chat')"></button>
-        <input class="chat-in" id="chat-in" placeholder="Select a database above to start adding entries..." disabled onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}">
-        <button class="send-btn" id="send-btn" onclick="sendMsg()" disabled>Send</button>
+        <button class="scan-btn" id="scan-btn-chat" onclick="openScanner('chat')" title="Scan receipt, product, or barcode">📷</button>
+        <button class="drop-btn" id="drop-btn-chat" title="Attach file (image, PDF, spreadsheet)">📎<input type="file" id="file-pick-chat" accept="image/*,.pdf,.csv,.xlsx,.xls" onchange="handleFileDrop(this.files[0],'chat')"></button>
+        <input class="chat-in" id="chat-in" placeholder="Describe what you want to add — Alice will figure out where it goes..." onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}">
+        <button class="send-btn" id="send-btn" onclick="sendMsg()">Send</button>
       </div>
     </div>
   </div>
