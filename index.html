@@ -207,7 +207,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="mode-tab" id="tab-morning" onclick="switchMode('morning')" style="flex:0.6">☀️ Morning</div>
     <div class="mode-tab on" id="tab-chat" onclick="switchMode('chat')">💬 Chat Entry</div>
     <div class="mode-tab" id="tab-search" onclick="switchMode('search')">🔍 Search & Ask</div>
-    <div class="mode-tab" id="tab-personal" onclick="togglePersonal()" style="flex:0.6;font-size:13px;font-weight:700" title="Unlock personal databases">🔒 Locked</div>
+    <div class="mode-tab" id="tab-personal" onclick="togglePersonal()" style="flex:0.6;font-size:13px;font-weight:700;color:var(--green);background:var(--green-dim)" title="Lock personal databases">🔓 Unlocked</div>
   </div>
 
   <!-- Personal unlock modal -->
@@ -232,7 +232,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
       </select>
       <div class="db-select-arrow">▼</div>
     </div>
-    <div class="db-select-wrap" id="personal-select-wrap" style="display:none">
+    <div class="db-select-wrap" id="personal-select-wrap">
       <select class="db-select db-select-personal" id="db-select-personal" onchange="pickDb(this.value,'personal')">
         <option value="">🔑 Personal database...</option>
       </select>
@@ -357,7 +357,7 @@ const PERSONAL_DBS=[
   {id:'nutrition',icon:'🥗',name:'Nutrition & Recipes',ds:'f0b9cddb-9f1b-4934-bb43-a2827c981578',tp:'Name',fields:[{n:'Name',t:'title',r:1},{n:'Type',t:'select',o:['Recipe','Meal Log','Nutrition Idea','Snack','Supplement','Reference']},{n:'Category',t:'select',o:['Breakfast','Lunch','Dinner','Snack','Pre-Workout','Post-Workout','General']},{n:'Protein (g)',t:'number'},{n:'Carbs (g)',t:'number'},{n:'Fat (g)',t:'number'},{n:'Calories',t:'number'},{n:'Ingredients',t:'text'},{n:'Instructions',t:'text'},{n:'Prep Time',t:'text'},{n:'Rating',t:'select',o:['5 - Amazing','4 - Great','3 - Good','2 - OK','1 - Not Again']},{n:'Source',t:'text'},{n:'Tags',t:'multi_select',o:['High Protein','Low Carb','Quick','Meal Prep','Anti-Inflammatory','Endurance Fuel','Recovery','Vegetarian']},{n:'Notes',t:'text'}]}
 ];
 
-let personalUnlocked=false;
+let personalUnlocked=true;
 let db=null, mode='chat', chatHistory=[], totalCreated=0, busy=false, parsedRows=[], uploadOpen=false;
 
 async function init() {
@@ -375,7 +375,7 @@ async function init() {
 async function serverCall(endpoint,body){const r=await fetch(CONFIG.serverUrl+endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+CONFIG.authToken},body:JSON.stringify(body)});if(!r.ok){const err=await r.text();throw new Error(`Server error ${r.status}: ${err}`)}return await r.json()}
 
 function pickDb(id, source){
-  if(!id){db=null;document.getElementById('field-ref-chat').style.display='none';document.getElementById('chat-in').disabled=true;document.getElementById('chat-in').placeholder='Select a database above to start adding entries...';document.getElementById('send-btn').disabled=true;document.getElementById('scan-btn-chat').disabled=true;document.getElementById('drop-btn-chat').disabled=true;return}
+  if(!id){db=null;document.getElementById('field-ref-chat').style.display='none';document.getElementById('chat-in').disabled=false;document.getElementById('chat-in').placeholder='Describe what you want to add — Alice will figure out where it goes...';document.getElementById('send-btn').disabled=false;document.getElementById('scan-btn-chat').disabled=false;document.getElementById('drop-btn-chat').disabled=false;return}
   // Clear the other dropdown when one is selected
   if(source==='biz')document.getElementById('db-select-personal').value='';
   if(source==='personal')document.getElementById('db-select-biz').value='';
@@ -425,15 +425,124 @@ function initChat(){document.getElementById('msgs').innerHTML='';addChat('ai',`R
 function addChat(type,html){const el=document.getElementById('msgs'),d=document.createElement('div');d.className='cm '+type;d.innerHTML=html.replace(/\n/g,'<br>');el.appendChild(d);el.scrollTop=el.scrollHeight;return d}
 
 async function sendMsg(){
-  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||busy)return;
+  
+  // If a database is selected, use the direct entry flow
+  if(db){
+    addChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+    const thinking=addChat('ai thinking','Creating in Notion...');chatHistory.push({role:'user',content:text});
+    try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory});thinking.remove();
+      if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+      if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys',`✅ ${result.createdCount} ${result.createdCount===1?'entry':'entries'} created in Notion!`);toast(`✅ ${result.createdCount} added to ${db.icon} ${db.name}`)}
+    }catch(err){thinking.remove();console.error(err);addChat('err','Connection issue — check server. Error: '+err.message)}
+    busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+    return;
+  }
+  
+  // No database selected — use auto-routing
   addChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
-  const thinking=addChat('ai thinking','Creating in Notion...');chatHistory.push({role:'user',content:text});
-  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory});thinking.remove();
-    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
-    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys',`✅ ${result.createdCount} ${result.createdCount===1?'entry':'entries'} created in Notion!`);toast(`✅ ${result.createdCount} added to ${db.icon} ${db.name}`)}
+  const thinking=addChat('ai thinking','Figuring out where this goes...');
+  try{
+    const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
+    // Step 1: Ask the routing AI which database this belongs in
+    const routeResult=await serverCall('/query',{
+      message:'The user wants to CREATE a new entry. Analyze this input and tell me which SINGLE database it belongs in. Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high|medium|low","reason":"one sentence why"}. Input: "'+text+'"',
+      databases:allDbs,
+      history:[]
+    });
+    thinking.remove();
+    
+    // Parse the routing response
+    let routeInfo=null;
+    try{
+      const jsonMatch=routeResult.text.match(/\{[^}]+\}/);
+      if(jsonMatch)routeInfo=JSON.parse(jsonMatch[0]);
+    }catch(e){}
+    
+    if(routeInfo&&routeInfo.database){
+      const targetDb=allDbs.find(d=>d.name.toLowerCase()===routeInfo.database.toLowerCase())||allDbs.find(d=>d.name.toLowerCase().includes(routeInfo.database.toLowerCase()));
+      
+      if(targetDb&&routeInfo.confidence==='high'){
+        // High confidence — just do it
+        addChat('ai',formatMd('I\'ll add this to **'+targetDb.icon+' '+targetDb.name+'**.'));
+        db=targetDb;
+        const createThinking=addChat('ai thinking','Creating entry...');
+        chatHistory=[{role:'user',content:text}];
+        const result=await serverCall('/chat',{message:text,database:db,history:chatHistory});
+        createThinking.remove();
+        if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+        if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
+        db=null;
+      }else if(targetDb){
+        // Medium/low confidence — ask for confirmation
+        window._pendingAutoRoute={text:text,targetDb:targetDb,allDbs:allDbs};
+        addChat('ai',formatMd('I\'m thinking this goes in **'+targetDb.icon+' '+targetDb.name+'** — '+(routeInfo.reason||'based on the content')+'.\n\nIs that right? Type **yes** to confirm, or tell me which database to use instead.'));
+        chatHistory=[{role:'user',content:text},{role:'assistant',content:'Suggested: '+targetDb.name}];
+      }else{
+        addChat('ai',formatMd('I couldn\'t determine the right database for this. Could you select one from the dropdown, or tell me which database this should go in?'));
+      }
+    }else{
+      addChat('ai',formatMd('I wasn\'t sure where to file this. Could you pick a database from the dropdown, or describe what category this entry belongs to?'));
+    }
   }catch(err){thinking.remove();console.error(err);addChat('err','Connection issue — check server. Error: '+err.message)}
   busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
 }
+
+// Handle confirmation for auto-routed entries
+async function handleAutoRouteConfirm(text){
+  const pending=window._pendingAutoRoute;
+  if(!pending)return false;
+  const lower=text.toLowerCase().trim();
+  if(lower==='yes'||lower==='y'||lower==='yep'||lower==='correct'||lower==='that\'s right'||lower==='right'){
+    addChat('user',esc(text));document.getElementById('chat-in').value='';
+    busy=true;
+    db=pending.targetDb;
+    const thinking=addChat('ai thinking','Creating entry...');
+    chatHistory=[{role:'user',content:pending.text}];
+    try{
+      const result=await serverCall('/chat',{message:pending.text,database:db,history:chatHistory});
+      thinking.remove();
+      if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+      if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+db.icon+' '+db.name+'!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+    }catch(err){thinking.remove();addChat('err','Error: '+err.message)}
+    db=null;window._pendingAutoRoute=null;busy=false;
+    return true;
+  }else if(lower==='no'||lower==='n'||lower==='nope'){
+    addChat('user',esc(text));document.getElementById('chat-in').value='';
+    addChat('ai',formatMd('No problem! Tell me which database this should go in, or select one from the dropdown above.'));
+    window._pendingAutoRoute=null;
+    return true;
+  }
+  // Check if they named a database
+  const namedDb=pending.allDbs.find(d=>lower.includes(d.name.toLowerCase()));
+  if(namedDb){
+    addChat('user',esc(text));document.getElementById('chat-in').value='';
+    busy=true;
+    db=namedDb;
+    const thinking=addChat('ai thinking','Creating entry in '+namedDb.name+'...');
+    chatHistory=[{role:'user',content:pending.text}];
+    try{
+      const result=await serverCall('/chat',{message:pending.text,database:db,history:chatHistory});
+      thinking.remove();
+      if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+      if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+db.icon+' '+db.name+'!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+    }catch(err){thinking.remove();addChat('err','Error: '+err.message)}
+    db=null;window._pendingAutoRoute=null;busy=false;
+    return true;
+  }
+  return false;
+}
+
+// Wrap the original sendMsg to check for pending auto-route confirmations
+const _origSendMsg=sendMsg;
+sendMsg=async function(){
+  const input=document.getElementById('chat-in'),text=input.value.trim();
+  if(window._pendingAutoRoute&&text){
+    const handled=await handleAutoRouteConfirm(text);
+    if(handled){input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();return}
+  }
+  return _origSendMsg();
+};
 
 let searchHistory=[];
 function initSearch(){document.getElementById('search-msgs').innerHTML='';addSearchChat('ai','Ask me anything — I can search across <strong>all your databases</strong> and find what you need.\n\nExamples:\n• "What bike parts do we have in stock?"\n• "Show me all meeting notes"\n• "What roles have we documented?"\n• "Any inventory items over $200?"')}
