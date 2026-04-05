@@ -739,13 +739,61 @@ function useScan(){
 }
 
 async function sendMsgWithImage(imageBase64){
-  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
-  addChat('user','<div class="img-thumb"><img src="data:image/jpeg;base64,'+imageBase64.substring(0,100)+'..." alt="scan">📷 Scanned image</div>'+esc(text));
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||busy)return;
+  
+  // If database is selected, direct entry
+  if(db){
+    addChat('user','<div class="img-thumb"><img src="data:image/jpeg;base64,'+imageBase64.substring(0,100)+'..." alt="scan">📷 Scanned image</div>'+esc(text));
+    input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+    window._lastImageBase64=imageBase64;
+    const thinking=addChat('ai thinking','Analyzing image and creating entries...');chatHistory.push({role:'user',content:text});
+    try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,image:imageBase64});thinking.remove();
+      if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+      if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from scan!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+      if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
+    }catch(err){thinking.remove();console.error(err);addChat('err','Scan processing failed — '+err.message)}
+    busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+    return;
+  }
+  
+  // No database selected — auto-route the image
+  addChat('user','<div class="img-thumb">📷 Scanned image</div>'+esc(text));
   input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
-  const thinking=addChat('ai thinking','Analyzing image and creating entries...');chatHistory.push({role:'user',content:text});
-  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,image:imageBase64});thinking.remove();
-    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
-    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from scan!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+  window._lastImageBase64=imageBase64;
+  const thinking=addChat('ai thinking','Reading image and figuring out where this goes...');
+  try{
+    const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
+    // Ask routing AI to identify what this is and which database
+    const routeResult=await serverCall('/query',{
+      message:'The user scanned an image (receipt, document, product, etc). Based on the image content and their message, which SINGLE database should this entry go in? Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high","reason":"one sentence why"}. User said: "'+text+'"',
+      databases:allDbs,
+      history:[],
+      image:imageBase64
+    });
+    thinking.remove();
+    
+    let routeInfo=null;
+    try{const m=routeResult.text.match(/\{[^}]+\}/);if(m)routeInfo=JSON.parse(m[0]);}catch(e){}
+    
+    if(routeInfo&&routeInfo.database){
+      const targetDb=allDbs.find(d=>d.name.toLowerCase()===routeInfo.database.toLowerCase())||allDbs.find(d=>d.name.toLowerCase().includes(routeInfo.database.toLowerCase()));
+      if(targetDb){
+        addChat('ai',formatMd("I'll add this to **"+targetDb.icon+' '+targetDb.name+'**.'));
+        db=targetDb;
+        const createThinking=addChat('ai thinking','Creating entry from scan...');
+        chatHistory=[{role:'user',content:text}];
+        const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,image:imageBase64});
+        createThinking.remove();
+        if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+        if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
+        if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
+        db=null;
+      }else{
+        addChat('ai',formatMd("I couldn't determine the right database. Please select one from the dropdown and try again."));
+      }
+    }else{
+      addChat('ai',formatMd("I wasn't sure where to file this. Please select a database from the dropdown and try again."));
+    }
   }catch(err){thinking.remove();console.error(err);addChat('err','Scan processing failed — '+err.message)}
   busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
 }
@@ -954,13 +1002,47 @@ searchQuery=async function(){
 
 // ═══ PDF handlers — send as document to Claude ═══
 async function sendMsgWithPdf(pdfBase64, fileName){
-  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||!db||busy)return;
+  const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||busy)return;
+  
+  if(db){
+    addChat('user','<div class="img-thumb">📄 '+esc(fileName)+'</div>'+esc(text));
+    input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+    const thinking=addChat('ai thinking','Reading PDF and creating entries...');chatHistory.push({role:'user',content:text});
+    try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,pdf:pdfBase64,pdfName:fileName});thinking.remove();
+      if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+      if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from PDF!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+    }catch(err){thinking.remove();console.error(err);addChat('err','PDF processing failed — '+err.message)}
+    busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+    return;
+  }
+  
+  // No database selected — auto-route
   addChat('user','<div class="img-thumb">📄 '+esc(fileName)+'</div>'+esc(text));
   input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
-  const thinking=addChat('ai thinking','Reading PDF and creating entries...');chatHistory.push({role:'user',content:text});
-  try{const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,pdf:pdfBase64,pdfName:fileName});thinking.remove();
-    if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
-    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created from PDF!');toast('✅ '+result.createdCount+' added to '+db.icon+' '+db.name)}
+  const thinking=addChat('ai thinking','Reading PDF and figuring out where this goes...');
+  try{
+    const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
+    const routeResult=await serverCall('/query',{
+      message:'The user uploaded a PDF document called "'+fileName+'". Based on the content and their message, which SINGLE database should this entry go in? Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high","reason":"one sentence why"}. User said: "'+text+'"',
+      databases:allDbs,history:[],pdf:pdfBase64,pdfName:fileName
+    });
+    thinking.remove();
+    let routeInfo=null;
+    try{const m=routeResult.text.match(/\{[^}]+\}/);if(m)routeInfo=JSON.parse(m[0]);}catch(e){}
+    if(routeInfo&&routeInfo.database){
+      const targetDb=allDbs.find(d=>d.name.toLowerCase()===routeInfo.database.toLowerCase())||allDbs.find(d=>d.name.toLowerCase().includes(routeInfo.database.toLowerCase()));
+      if(targetDb){
+        addChat('ai',formatMd("I'll add this to **"+targetDb.icon+' '+targetDb.name+'**.'));
+        db=targetDb;
+        const createThinking=addChat('ai thinking','Creating entry from PDF...');
+        chatHistory=[{role:'user',content:text}];
+        const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,pdf:pdfBase64,pdfName:fileName});
+        createThinking.remove();
+        if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+        if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
+        db=null;
+      }else{addChat('ai',formatMd("I couldn't determine the right database. Please select one from the dropdown and try again."));}
+    }else{addChat('ai',formatMd("I wasn't sure where to file this. Please select a database from the dropdown and try again."));}
   }catch(err){thinking.remove();console.error(err);addChat('err','PDF processing failed — '+err.message)}
   busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
 }
