@@ -198,6 +198,10 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="hdr-title">Al<span class="i">i</span>ce</div>
     <div class="hdr-sub">Larry's Personal Assistant</div>
     <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v6</div>
+    <div id="weather-strip" style="margin-top:8px;font-size:13px;color:var(--text-dim);display:inline-flex;align-items:center;gap:6px;padding:5px 14px;background:var(--surface);border:1px solid var(--border);border-radius:100px;box-shadow:var(--warm-shadow)">
+      <span id="weather-icon" style="font-size:15px">⏳</span>
+      <span id="weather-text" style="font-weight:500">Loading weather...</span>
+    </div>
   </header>
 
   <div class="config-banner" id="config-banner">
@@ -1180,7 +1184,40 @@ async function loadAlerts(){
   }
   if(btn){btn.disabled=false;btn.textContent='🔔 Active Alerts';}
 }
+// ═══════════════════════════════════════
+// WEATHER — Live conditions for Louisville, CO
+// ═══════════════════════════════════════
+async function loadWeather(){
+  try{
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=39.9778&longitude=-105.1319&current_weather=true&temperature_unit=fahrenheit&wind_speed_unit=mph');
+    if(!r.ok)throw new Error('weather fetch failed');
+    const d=await r.json();
+    const cw=d.current_weather;
+    const temp=Math.round(cw.temperature);
+    const wmo=cw.weathercode;
+    // WMO weather code → emoji + label
+    let icon='🌡️',label='';
+    if(wmo===0){icon='☀️';label='Clear'}
+    else if(wmo===1){icon='🌤️';label='Mostly Clear'}
+    else if(wmo===2){icon='⛅';label='Partly Cloudy'}
+    else if(wmo===3){icon='☁️';label='Overcast'}
+    else if(wmo<=49){icon='🌫️';label='Fog'}
+    else if(wmo<=57){icon='🌧️';label='Drizzle'}
+    else if(wmo<=67){icon='🌧️';label='Rain'}
+    else if(wmo<=77){icon='❄️';label='Snow'}
+    else if(wmo<=82){icon='🌦️';label='Showers'}
+    else if(wmo<=86){icon='🌨️';label='Snow Showers'}
+    else{icon='⛈️';label='Thunderstorm'}
+    document.getElementById('weather-icon').textContent=icon;
+    document.getElementById('weather-text').textContent=temp+'°F · '+label+' · Louisville, CO';
+  }catch(e){
+    document.getElementById('weather-text').textContent='Weather unavailable';
+    document.getElementById('weather-icon').textContent='🌡️';
+  }
+}
+
 init();
+loadWeather();
 </script>
 
 <!-- Scan Modal -->
