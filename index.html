@@ -433,6 +433,20 @@ function addChat(type,html){const el=document.getElementById('msgs'),d=document.
 async function sendMsg(){
   const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||busy)return;
   
+  // ── Calendar intent detection ──
+  // Check before database routing so "remind me / schedule / add to calendar" is caught first
+  if(detectCalendarIntent(text)){
+    addChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
+    const thinking=addChat('ai thinking','Checking your calendar...');
+    try{
+      const result=await handleCalendarIntent(text);
+      thinking.remove();
+      addChat('ai',formatMd(result));
+    }catch(err){thinking.remove();console.error(err);addChat('err','Calendar error: '+err.message)}
+    busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
+    return;
+  }
+  
   // If a database is selected, use the direct entry flow
   if(db){
     addChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
@@ -1185,8 +1199,20 @@ async function loadAlerts(){
   if(btn){btn.disabled=false;btn.textContent='🔔 Active Alerts';}
 }
 // ═══════════════════════════════════════
-// WEATHER — Live conditions for Louisville, CO
+// GOOGLE CALENDAR — Natural language create/list via worker
 // ═══════════════════════════════════════
+function detectCalendarIntent(text){
+  return /(remind me|schedule|add to (my )?calendar|put on (my )?calendar|create (an? )?event|block (off|out)|set (a )?reminder|what('s| is) on my calendar|what do i have|show my (calendar|schedule)|do i have anything)/i.test(text);
+}
+
+async function handleCalendarIntent(text){
+  // Route through the worker — it handles the Claude NLP parse + Google Calendar API call
+  const result=await serverCall('/calendar',{action:'natural',message:text});
+  if(result.error)return '❌ Calendar error: '+result.error;
+  return result.text||'Done!';
+}
+
+
 async function loadWeather(){
   try{
     const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=39.9778&longitude=-105.1319&current_weather=true&temperature_unit=fahrenheit&wind_speed_unit=mph');
