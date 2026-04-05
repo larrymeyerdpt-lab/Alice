@@ -197,7 +197,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="hdr-badge" id="status-badge"><span class="dot"></span> Alice is ready</div>
     <div class="hdr-title">Al<span class="i">i</span>ce</div>
     <div class="hdr-sub">Larry's Personal Assistant</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v5</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v6</div>
   </header>
 
   <div class="config-banner" id="config-banner">
@@ -743,6 +743,7 @@ function useScan(){
 }
 
 async function sendMsgWithImage(imageBase64){
+  console.log('sendMsgWithImage CALLED, imageBase64 length:', imageBase64?.length, 'starts:', imageBase64?.substring(0,10), 'db:', db?.name||'null');
   const input=document.getElementById('chat-in'),text=input.value.trim();if(!text||busy)return;
   
   // If database is selected, direct entry
@@ -770,6 +771,7 @@ async function sendMsgWithImage(imageBase64){
   db=targetDb;
   const thinking=addChat('ai thinking','Reading image and creating entry...');
   try{
+    console.log('SENDING TO /chat: imageBase64 length='+imageBase64.length+' starts='+imageBase64.substring(0,10)+' db='+db.name);
     const result=await serverCall('/chat',{message:text,database:db,history:[],image:imageBase64});
     thinking.remove();
     if(result.text){addChat('ai',formatMd(result.text));chatHistory=[{role:'user',content:text},{role:'assistant',content:result.text}]}
