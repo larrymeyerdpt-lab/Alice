@@ -197,7 +197,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="hdr-badge" id="status-badge"><span class="dot"></span> Alice is ready</div>
     <div class="hdr-title">Al<span class="i">i</span>ce</div>
     <div class="hdr-sub">Larry's Personal Assistant</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v3</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v4</div>
   </header>
 
   <div class="config-banner" id="config-banner">
@@ -685,11 +685,14 @@ function startBarcodeDetection(){
 function capturePhoto(){
   const video=document.getElementById('scan-video');
   const canvas=document.getElementById('scan-canvas');
-  canvas.width=video.videoWidth;canvas.height=video.videoHeight;
+  canvas.width=video.videoWidth||640;canvas.height=video.videoHeight||480;
   const ctx=canvas.getContext('2d');
-  ctx.drawImage(video,0,0);
-  const dataUrl=canvas.toDataURL('image/jpeg',0.85);
+  ctx.drawImage(video,0,0,canvas.width,canvas.height);
+  // Try JPEG first, fall back to PNG if JPEG produces invalid data
+  let dataUrl=canvas.toDataURL('image/jpeg',0.8);
+  if(!dataUrl||dataUrl.length<1000){dataUrl=canvas.toDataURL('image/png');}
   pendingImage=dataUrl.split(',')[1]; // base64 without prefix
+  console.log('Captured image: format='+dataUrl.substring(5,15)+' size='+pendingImage.length+' starts='+pendingImage.substring(0,10));
   
   // Show preview
   stopCamera();
