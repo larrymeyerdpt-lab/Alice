@@ -571,6 +571,19 @@ function addSearchChat(type,html){const el=document.getElementById('search-msgs'
 
 async function searchQuery(){
   const input=document.getElementById('search-in'),text=input.value.trim();if(!text||busy)return;
+  
+  // Calendar intent — handle directly instead of searching Notion databases
+  if(detectCalendarIntent(text)){
+    addSearchChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
+    const thinking=addSearchChat('ai thinking','Checking your calendar...');
+    try{
+      const result=await handleCalendarIntent(text);
+      thinking.remove();
+      addSearchChat('ai',formatMd(result));
+    }catch(err){thinking.remove();console.error(err);addSearchChat('err','Calendar error: '+err.message)}
+    busy=false;input.disabled=false;document.getElementById('search-btn').disabled=false;input.focus();
+    return;
+  }
   addSearchChat('user',esc(text));input.value='';busy=true;input.disabled=true;document.getElementById('search-btn').disabled=true;
   const thinking=addSearchChat('ai thinking','Searching databases...');searchHistory.push({role:'user',content:text});
   try{const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;const result=await serverCall('/query',{message:text,databases:allDbs,history:searchHistory.slice(-6)});thinking.remove();
@@ -1202,7 +1215,7 @@ async function loadAlerts(){
 // GOOGLE CALENDAR — Natural language create/list via worker
 // ═══════════════════════════════════════
 function detectCalendarIntent(text){
-  return /(remind me|schedule|add to (my )?calendar|put on (my )?calendar|create (an? )?event|block (off|out)|set (a )?reminder|what('s| is) on my calendar|what do i have|show my (calendar|schedule)|do i have anything)/i.test(text);
+  return /(remind me|schedule|add to (my )?calendar|put on (my )?calendar|create (an? )?event|block (off|out)|set (a )?reminder|what('s| is) on my calendar|what do i have|show my (calendar|schedule)|do i have anything|any(thing)? scheduled|look in (my )?calendar|check (my )?calendar|calls? this week|meetings? this week|what('s| are) (my )?(calls?|meetings?|appointments?)|any calls?|any meetings?)/i.test(text);
 }
 
 async function handleCalendarIntent(text){
