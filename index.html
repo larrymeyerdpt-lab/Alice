@@ -763,12 +763,11 @@ async function sendMsgWithImage(imageBase64){
   const thinking=addChat('ai thinking','Reading image and figuring out where this goes...');
   try{
     const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
-    // Ask routing AI to identify what this is and which database
+    // Ask routing AI to identify what this is and which database (don't send image to save tokens for the create step)
     const routeResult=await serverCall('/query',{
-      message:'The user scanned an image (receipt, document, product, etc). Based on the image content and their message, which SINGLE database should this entry go in? Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high","reason":"one sentence why"}. User said: "'+text+'"',
+      message:'The user scanned an image of what appears to be a receipt, document, or product. Based on their message, which SINGLE database should this entry go in? If it sounds like a receipt or purchase, use Receipts & Expenses. Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high","reason":"one sentence why"}. User said: "'+text+'"',
       databases:allDbs,
-      history:[],
-      image:imageBase64
+      history:[]
     });
     thinking.remove();
     
@@ -780,13 +779,17 @@ async function sendMsgWithImage(imageBase64){
       if(targetDb){
         addChat('ai',formatMd("I'll add this to **"+targetDb.icon+' '+targetDb.name+'**.'));
         db=targetDb;
-        const createThinking=addChat('ai thinking','Creating entry from scan...');
-        chatHistory=[{role:'user',content:text}];
-        const result=await serverCall('/chat',{message:text,database:db,history:chatHistory,image:imageBase64});
-        createThinking.remove();
-        if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
-        if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
-        if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
+        const createThinking=addChat('ai thinking','Reading receipt and creating entry...');
+        // Wait 3 seconds to avoid rate limiting after the routing call
+        await new Promise(r=>setTimeout(r,3000));
+        chatHistory=[{role:'user',content:'Please read the attached image carefully and extract all details to create entries. '+text}];
+        try{
+          const result=await serverCall('/chat',{message:'Please read the attached image carefully and extract all details to create entries. '+text,database:db,history:[],image:imageBase64});
+          createThinking.remove();
+          if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
+          if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
+          if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
+        }catch(chatErr){createThinking.remove();addChat('err','Failed to create entry: '+chatErr.message+'. This may be a rate limit — wait a moment and try again.');}
         db=null;
       }else{
         addChat('ai',formatMd("I couldn't determine the right database. Please select one from the dropdown and try again."));
