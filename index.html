@@ -197,6 +197,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="hdr-badge" id="status-badge"><span class="dot"></span> Alice is ready</div>
     <div class="hdr-title">Al<span class="i">i</span>ce</div>
     <div class="hdr-sub">Larry's Personal Assistant</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v3</div>
   </header>
 
   <div class="config-banner" id="config-banner">
@@ -756,48 +757,23 @@ async function sendMsgWithImage(imageBase64){
     return;
   }
   
-  // No database selected — auto-route the image
+  // No database selected — default to Receipts & Expenses for camera scans (single call, no routing)
   addChat('user','<div class="img-thumb">📷 Scanned image</div>'+esc(text));
   input.value='';busy=true;input.disabled=true;document.getElementById('send-btn').disabled=true;
   window._lastImageBase64=imageBase64;
-  const thinking=addChat('ai thinking','Reading image and figuring out where this goes...');
+  const receiptDb=PERSONAL_DBS.find(d=>d.id==='receipts');
+  const targetDb=receiptDb||PERSONAL_DBS[0];
+  addChat('ai',formatMd("I'll add this to **"+targetDb.icon+' '+targetDb.name+"**."));
+  db=targetDb;
+  const thinking=addChat('ai thinking','Reading image and creating entry...');
   try{
-    const allDbs=personalUnlocked?[...DBS,...PERSONAL_DBS]:DBS;
-    // Ask routing AI to identify what this is and which database (don't send image to save tokens for the create step)
-    const routeResult=await serverCall('/query',{
-      message:'The user scanned an image of what appears to be a receipt, document, or product. Based on their message, which SINGLE database should this entry go in? If it sounds like a receipt or purchase, use Receipts & Expenses. Respond with ONLY a JSON object: {"database":"exact database name","confidence":"high","reason":"one sentence why"}. User said: "'+text+'"',
-      databases:allDbs,
-      history:[]
-    });
+    const result=await serverCall('/chat',{message:text,database:db,history:[],image:imageBase64});
     thinking.remove();
-    
-    let routeInfo=null;
-    try{const m=routeResult.text.match(/\{[^}]+\}/);if(m)routeInfo=JSON.parse(m[0]);}catch(e){}
-    
-    if(routeInfo&&routeInfo.database){
-      const targetDb=allDbs.find(d=>d.name.toLowerCase()===routeInfo.database.toLowerCase())||allDbs.find(d=>d.name.toLowerCase().includes(routeInfo.database.toLowerCase()));
-      if(targetDb){
-        addChat('ai',formatMd("I'll add this to **"+targetDb.icon+' '+targetDb.name+'**.'));
-        db=targetDb;
-        const createThinking=addChat('ai thinking','Reading receipt and creating entry...');
-        // Wait 3 seconds to avoid rate limiting after the routing call
-        await new Promise(r=>setTimeout(r,3000));
-        chatHistory=[{role:'user',content:'Please read the attached image carefully and extract all details to create entries. '+text}];
-        try{
-          const result=await serverCall('/chat',{message:'Please read the attached image carefully and extract all details to create entries. '+text,database:db,history:[],image:imageBase64});
-          createThinking.remove();
-          if(result.text){addChat('ai',formatMd(result.text));chatHistory.push({role:'assistant',content:result.text})}
-          if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
-          if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
-        }catch(chatErr){createThinking.remove();addChat('err','Failed to create entry: '+chatErr.message+'. This may be a rate limit — wait a moment and try again.');}
-        db=null;
-      }else{
-        addChat('ai',formatMd("I couldn't determine the right database. Please select one from the dropdown and try again."));
-      }
-    }else{
-      addChat('ai',formatMd("I wasn't sure where to file this. Please select a database from the dropdown and try again."));
-    }
+    if(result.text){addChat('ai',formatMd(result.text));chatHistory=[{role:'user',content:text},{role:'assistant',content:result.text}]}
+    if(result.createdCount>0){totalCreated+=result.createdCount;updateCounter();addChat('sys','✅ '+result.createdCount+' '+(result.createdCount===1?'entry':'entries')+' created in '+targetDb.icon+' '+targetDb.name+'!');toast('✅ '+result.createdCount+' added to '+targetDb.icon+' '+targetDb.name)}
+    if(result.receiptUrl){addChat('sys','📸 Receipt image saved to Firebase.')}
   }catch(err){thinking.remove();console.error(err);addChat('err','Scan processing failed — '+err.message)}
+  db=null;
   busy=false;input.disabled=false;document.getElementById('send-btn').disabled=false;input.focus();
 }
 
