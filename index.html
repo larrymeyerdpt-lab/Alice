@@ -197,7 +197,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="hdr-badge" id="status-badge"><span class="dot"></span> Alice is ready</div>
     <div class="hdr-title">Al<span class="i">i</span>ce</div>
     <div class="hdr-sub">Larry's Personal Assistant</div>
-    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v4</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:4px;font-family:'JetBrains Mono',monospace">v5</div>
   </header>
 
   <div class="config-banner" id="config-banner">
@@ -862,14 +862,27 @@ function handleFileDrop(file,target){
 
   // For images — read as base64
   if(isImage){
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const dataUrl=e.target.result;
+    // Convert all images (including HEIC from iPhone) to JPEG via canvas
+    const img=new Image();
+    img.onload=function(){
+      const canvas=document.createElement('canvas');
+      canvas.width=img.width;canvas.height=img.height;
+      // Limit max dimension to 2048px to keep file size reasonable
+      const maxDim=2048;
+      if(img.width>maxDim||img.height>maxDim){
+        const scale=Math.min(maxDim/img.width,maxDim/img.height);
+        canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+      }
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      const dataUrl=canvas.toDataURL('image/jpeg',0.85);
       const base64=dataUrl.split(',')[1];
-      pendingFile[target]={type:'image',name:file.name,size:file.size,base64:base64,dataUrl:dataUrl};
+      console.log('Image converted to JPEG: '+base64.length+' chars, starts: '+base64.substring(0,10));
+      pendingFile[target]={type:'image',name:file.name,size:base64.length,base64:base64,dataUrl:dataUrl};
       showFilePreview(target);
     };
-    reader.readAsDataURL(file);
+    img.onerror=function(){toast('Could not load image. Try a different format.');};
+    img.src=URL.createObjectURL(file);
     return;
   }
 
