@@ -1178,13 +1178,12 @@ async function runMorningKickoff(){
   const container=document.getElementById('morning-results');
   container.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Loading today\'s briefing...</div>';
   try{
-    const briefingDb=PERSONAL_DBS.find(d=>d.id==='briefings');
-    if(!briefingDb){container.innerHTML='<div style="padding:16px;color:var(--red)">Morning Briefings database not found. Make sure personal databases are unlocked.</div>';if(btn){btn.disabled=false;btn.textContent='☀️ Load Briefing';}return}
-    const result=await serverCall('/query',{message:'Show me the most recent morning briefing entry. Return all details including schedule, tasks, alerts, and notes.',databases:[briefingDb,...(personalUnlocked?PERSONAL_DBS:[])],history:[]});
+    // Autonomous briefing — calls worker directly, no Sage kickoff needed
+    const result=await serverCall('/morning',{});
     if(result.text){
       container.innerHTML='<div class="morning-card" style="margin-bottom:12px"><div style="padding:20px 24px;font-size:14px;line-height:1.7;color:var(--text)">'+formatMd(result.text)+'</div></div>';
     }else{
-      container.innerHTML='<div class="morning-card"><div style="padding:24px;text-align:center;color:var(--text-dim)"><div style="font-size:24px;margin-bottom:8px">📭</div>No briefing yet today.<br><br>Say <strong>"morning kickoff"</strong> to Sage in Claude to generate one.</div></div>';
+      container.innerHTML='<div class="morning-card"><div style="padding:24px;text-align:center;color:var(--text-dim)"><div style="font-size:24px;margin-bottom:8px">📭</div>Nothing to show yet — check back closer to your work day.</div></div>';
     }
   }catch(err){
     container.innerHTML='<div style="padding:16px;color:var(--red)">Could not load briefing: '+esc(err.message)+'</div>';
